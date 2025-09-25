@@ -1,8 +1,12 @@
 // View Manager - Gestió de múltiples vistes a Electron
 class ViewManager {
   constructor() {
-    this.currentView = "browsers";
+    this.currentView = "home";
     this.views = {
+      home: {
+        title: "PalamBlock Admin",
+        templateFile: "views/home.html",
+      },
       browsers: {
         title: "PalamBlock Admin - Navegadors",
         templateFile: "views/browsers.html",
@@ -13,6 +17,53 @@ class ViewManager {
       },
     };
     this.viewInstances = new Map();
+
+    // Intent de càrrega inicial si ja estem autenticats i el main és buit
+    setTimeout(() => {
+      const main =
+        document.getElementById("appMain") || document.querySelector("main");
+      if (
+        main &&
+        main.innerHTML.trim() === "" &&
+        window.authManager?.isAuthenticated
+      ) {
+        this.loadView("home");
+      }
+    }, 50);
+
+    // Escolta autenticació (login o token reutilitzat) per assegurar home i refrescar info
+    window.addEventListener("auth:ready", () => {
+      const main =
+        document.getElementById("appMain") || document.querySelector("main");
+      if (main && main.innerHTML.trim() === "") this.loadView("home");
+      if (this.currentView === "home") this.updateHomeUserInfo();
+    });
+
+    // Delegació global d'esdeveniments (un cop) per evitar dependència d'scripts inline a les vistes
+    document.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!target) return;
+      const logoBtn = target.closest(
+        "#brandLogoBrowsers, #brandLogoScreens, #homeLogoButton"
+      );
+      if (logoBtn) {
+        e.preventDefault();
+        this.loadView("home");
+        return;
+      }
+      const changeCreds = target.closest("#changeCredsLink");
+      if (changeCreds) {
+        e.preventDefault();
+        window.authManager?.showLogin();
+        return;
+      }
+      const toScreens = target.closest("#globalGroupScreensButton");
+      if (toScreens) {
+        e.preventDefault();
+        this.loadView("screens");
+        return;
+      }
+    });
   }
 
   async loadView(viewName) {
@@ -40,8 +91,12 @@ class ViewManager {
       const html = await response.text();
 
       // Substitueix el contingut principal
-      const mainContent = document.querySelector("main");
+      const mainContent =
+        document.getElementById("appMain") || document.querySelector("main");
       mainContent.innerHTML = html;
+
+      // Executa scripts inline (si alguna vista encara en porta) recreant-los
+      this.executeInlineScripts(mainContent);
 
       // Executa la inicialització específica de la vista
       await this.initializeView(viewName);
@@ -56,12 +111,38 @@ class ViewManager {
 
   async initializeView(viewName) {
     switch (viewName) {
+      case "home":
+        try {
+          const link = document.getElementById("changeCredsLink");
+          if (link && !link.dataset._bound) {
+            link.addEventListener("click", (e) => {
+              e.preventDefault();
+              window.authManager?.showLogin();
+            });
+            link.dataset._bound = "1";
+          }
+          this.updateHomeUserInfo();
+        } catch (e) {
+          console.warn("[HOME] Error inicialitzant elements home:", e);
+        }
+        if (!this.viewInstances.has("home"))
+          this.viewInstances.set("home", { destroy: () => {} });
+        break;
       case "browsers":
         // La vista de navegadors és un mòdul procedural (no classe)
         // Ens assegurem que el mòdul estigui carregat i, si hi ha una funció
         // d'inicialització global, la cridem.
         try {
-          await import("./browsers_view.js"); // cachejada si ja està
+          console.log("[VIEW] Import browsers_view.js inici");
+          const mod = await import("./browsers_view.js"); // cachejada si ja està
+          console.log(
+            "[VIEW] Import browsers_view.js OK",
+            Object.keys(mod || {})
+          );
+          if (mod && typeof mod.refreshBrowsersData === "function") {
+            // Si ja s'havia demanat abans, forcem un refresc de dades al re-entrar
+            mod.refreshBrowsersData("reenter");
+          }
         } catch (e) {
           console.warn("[VIEW] No s'ha pogut importar browsers_view.js:", e);
         }
@@ -92,8 +173,39 @@ class ViewManager {
     }
   }
 
+  updateHomeUserInfo() {
+    const info = document.getElementById("homeUserInfo");
+    if (!info) return;
+    if (
+      window.authManager?.isAuthenticated &&
+      window.authManager?.currentCredentials?.username
+    ) {
+      info.textContent = `Connectat com a ${window.authManager.currentCredentials.username}`;
+    } else {
+      info.textContent = "No autenticat";
+    }
+  }
+
+  executeInlineScripts(container) {
+    if (!container) return;
+    const scripts = Array.from(container.querySelectorAll("script"));
+    scripts.forEach((oldScript) => {
+      // Evitem tornar a executar si l'hem marcat
+      if (oldScript.dataset.executed) return;
+      const newScript = document.createElement("script");
+      // Copia atributs (ex: type, src)
+      for (const attr of oldScript.attributes) {
+        newScript.setAttribute(attr.name, attr.value);
+      }
+      newScript.textContent = oldScript.textContent;
+      oldScript.replaceWith(newScript);
+      newScript.dataset.executed = "true";
+    });
+  }
+
   showErrorView(errorMessage) {
-    const mainContent = document.querySelector("main");
+    const mainContent =
+      document.getElementById("appMain") || document.querySelector("main");
     mainContent.innerHTML = `
             <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
                 <div class="text-center">
@@ -130,3 +242,14 @@ class ViewManager {
 
 // Instància global
 window.viewManager = new ViewManager();
+
+// Si ja estem autenticats (token reutilitzat) i la vista encara no s'ha carregat,
+// carreguem la pàgina d'inici explícitament.
+window.addEventListener("DOMContentLoaded", () => {
+  if (window.authManager && window.authManager.isAuthenticated) {
+    const main =
+      document.getElementById("appMain") || document.querySelector("main");
+    if (main && main.innerHTML.trim() === "")
+      window.viewManager.loadView("home");
+  }
+});

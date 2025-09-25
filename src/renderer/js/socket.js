@@ -10,26 +10,45 @@ const defaultConfig = {
   },
 };
 
-// Socket instance - will be initialized by auth manager
+// Socket instance (es crea només després d'autenticació)
 let socket = null;
-let currentServerUrl = "http://localhost:4000";
-let currentCredentials = {
-  username: "admin",
-  token: "",
-};
+let currentServerUrl = null;
+let currentCredentials = null;
+let pendingConnection = false; // evita múltiples intents simultanis
 
 // Initialize socket connection
 function createSocket(serverUrl, credentials) {
+  if (pendingConnection) {
+    console.log("[SOCKET] Connexió pendent, s'ignora nou intent");
+    return socket;
+  }
+  if (!credentials || !credentials.token) {
+    console.log("[SOCKET] S'intenta crear socket sense token — ajornant");
+    return null;
+  }
+  pendingConnection = true;
+
   if (socket) {
-    socket.disconnect();
+    try {
+      socket.disconnect();
+    } catch (_) {}
+    socket = null;
   }
 
-  console.log("Creating socket connection to:", serverUrl);
+  currentServerUrl = serverUrl;
+  currentCredentials = credentials;
+
+  console.log(
+    "[SOCKET] Creant connexió a:",
+    serverUrl,
+    "usuari:",
+    credentials.username
+  );
 
   socket = io(serverUrl, {
     query: {
-      user: credentials.username || "admin",
-      authToken: credentials.token || "",
+      user: credentials.username,
+      authToken: credentials.token,
     },
     path: "/ws-admin",
     transports: ["websocket", "polling"],
@@ -37,63 +56,57 @@ function createSocket(serverUrl, credentials) {
     forceNew: true,
   });
 
-  // Setup connection event handlers
-  socket.on("connect", () => {
-    console.log("Socket connected to server");
-    if (window.authManager) {
-      // Notify connection status change if auth manager is available
+  socket.once("connect", () => {
+    pendingConnection = false;
+    console.log("[SOCKET] Connectat correctament");
+    try {
+      // Notifica a qualsevol mòdul que el socket ja està llest
+      window.dispatchEvent(
+        new CustomEvent("socket:ready", { detail: { socket } })
+      );
+    } catch (e) {
+      console.warn(
+        "[SOCKET] No s'ha pogut emetre l'esdeveniment socket:ready",
+        e
+      );
     }
   });
 
-  socket.on("disconnect", () => {
-    console.log("Socket disconnected from server");
+  socket.on("disconnect", (reason) => {
+    console.log("[SOCKET] Desconnectat:", reason);
   });
 
   socket.on("connect_error", (error) => {
-    console.error("Socket connection error:", error.message);
-    // Don't redirect to login, let auth manager handle it
+    pendingConnection = false;
+    console.error("[SOCKET] Error de connexió:", error.message);
     if (window.authManager && !window.authManager.isAuthenticated) {
+      // Manté el login visible
       window.authManager.showLogin();
     }
   });
-
-  currentServerUrl = serverUrl;
-  currentCredentials = credentials;
 
   return socket;
 }
 
 // Global function to update socket credentials (called from auth manager)
 window.updateSocketCredentials = function (serverUrl, credentials) {
+  // Només crea/actualitza si ja estem autenticats
+  if (!window.authManager || !window.authManager.isAuthenticated) {
+    console.log("[SOCKET] updateSocketCredentials ignorat (no autenticat)");
+    return null;
+  }
   return createSocket(serverUrl, credentials);
 };
 
-// Initialize with default config (will be updated by auth manager)
-socket = createSocket(currentServerUrl, currentCredentials);
-
 async function initializeSocket() {
   // Update socket config if electron config is available
-  try {
-    if (window.electronAPI && window.electronAPI.getConfig) {
-      const config = await window.electronAPI.getConfig();
-      if (config && config.server && config.server.url !== serverUrl) {
-        console.log("Reconnecting with new config:", config.server.url);
-        socket.disconnect();
-        const newSocket = io(config.server.url, {
-          query: {
-            user: config.authentication?.username || authUser,
-            authToken: config.authentication?.token || authToken,
-          },
-          path: "/ws-admin",
-          transports: ["websocket", "polling"],
-        });
-        return newSocket;
-      }
-    }
-  } catch (error) {
-    console.warn("Error updating socket config:", error);
+  if (!window.authManager || !window.authManager.isAuthenticated) {
+    console.log("[SOCKET] initializeSocket: no autenticat encara");
+    return null;
   }
-
+  if (!socket && currentServerUrl && currentCredentials) {
+    return createSocket(currentServerUrl, currentCredentials);
+  }
   return socket;
 }
 

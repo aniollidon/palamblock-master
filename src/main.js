@@ -16,7 +16,8 @@ function createWindow() {
       enableRemoteModule: false,
       preload: path.join(__dirname, "preload.js"),
     },
-    icon: path.join(__dirname, "../assets/icon.png"),
+    // Icona de l'aplicació: nou logo palamblock
+    icon: path.join(__dirname, "renderer", "images", "palamblock-logo.png"),
     show: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
   });

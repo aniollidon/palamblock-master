@@ -59,10 +59,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (window.viewManager) {
     console.log("Inicialitzant View Manager...");
     window.viewManager.setupNavigationHandlers();
-    // Carregar la vista inicial (browsers) només quan no hi hagi altres vistes carregades
+    // Ja no forcem 'browsers'; si ja estem autenticats, carreguem 'home' si està buit
     setTimeout(() => {
-      window.viewManager.loadView("browsers");
-    }, 100);
+      const main = document.querySelector("main");
+      if (window.authManager?.isAuthenticated) {
+        if (main && main.innerHTML.trim() === "") {
+          window.viewManager.loadView("home");
+        }
+      } else {
+        // Esperem autenticació i llavors mostrem home
+        window.addEventListener(
+          "auth:ready",
+          () => {
+            if (main && main.innerHTML.trim() === "") {
+              window.viewManager.loadView("home");
+            }
+          },
+          { once: true }
+        );
+      }
+    }, 120);
   }
 });
 

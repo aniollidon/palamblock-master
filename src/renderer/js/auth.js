@@ -5,6 +5,11 @@ class AuthManager {
     this.currentCredentials = null;
     this.serverUrl = null;
     this.authToken = null;
+    // Plain password is only stored in-memory; if user chooses to remember it
+    // we persist a Base64 representation (weak obfuscation, NOT secure) in config.
+    // SECURITY NOTE: Storing a reversible password locally is a risk. Consider
+    // using OS keychain / encrypted storage in a future iteration.
+    this.savedPlainPassword = null;
 
     this.initializeAuth();
   }
@@ -42,6 +47,25 @@ class AuthManager {
           }
           if (usernameEl) {
             usernameEl.value = this.currentCredentials.username || "admin";
+          }
+
+          // Restore remembered password if present
+          const passwordEl = document.getElementById("password");
+          const rememberCheckbox = document.getElementById(
+            "rememberCredentials"
+          );
+          if (config.authentication.passwordEnc && passwordEl) {
+            try {
+              const decoded = atob(config.authentication.passwordEnc);
+              passwordEl.value = decoded;
+              this.savedPlainPassword = decoded;
+              if (rememberCheckbox) rememberCheckbox.checked = true;
+            } catch (e) {
+              console.warn(
+                "[AUTH] No s'ha pogut decodificar la contrasenya guardada",
+                e
+              );
+            }
           }
 
           // If we have a token, try to validate it
@@ -92,6 +116,25 @@ class AuthManager {
     this.isAuthenticated = true;
     this.authToken = this.currentCredentials.token;
     this.hideLogin();
+    try {
+      window.dispatchEvent(
+        new CustomEvent("auth:ready", {
+          detail: { credentials: this.getCredentials() },
+        })
+      );
+    } catch (e) {
+      console.warn("[AUTH] No s'ha pogut emetre auth:ready", e);
+    }
+    // Si ja estem autenticats per token reutilitzat, mostra la vista d'inici
+    if (window.viewManager) {
+      window.viewManager.loadView("home");
+    }
+    // Defer socket connection (wait a tick so window.updateSocketCredentials exists)
+    setTimeout(() => {
+      if (window.updateSocketCredentials) {
+        window.updateSocketCredentials(this.serverUrl, this.currentCredentials);
+      }
+    }, 50);
     return true;
 
     return false;
@@ -246,15 +289,33 @@ class AuthManager {
           // Save to config if requested
           if (rememberCredentials) {
             console.log(`💾 [AUTH] Guardant credencials a la configuració...`);
+            // Store plain password in memory for saveCredentials(); persisted encoded.
+            this.savedPlainPassword = password;
             await this.saveCredentials();
+          } else {
+            // If user unchecked, ensure we clear any previously stored password
+            this.savedPlainPassword = null;
+            await this.saveCredentials(/*clearPassword=*/ true);
           }
 
           // Update socket connection
           console.log(`🔌 [AUTH] Actualitzant connexió socket...`);
-          await this.updateSocketConnection();
+          await this.updateSocketConnection(); // ara només si autenticat
 
           this.hideLogin();
           this.showSuccess("Autenticació correcta!");
+          try {
+            window.dispatchEvent(
+              new CustomEvent("auth:ready", {
+                detail: { credentials: this.getCredentials() },
+              })
+            );
+          } catch (e) {
+            console.warn("[AUTH] No s'ha pogut emetre auth:ready (login)", e);
+          }
+          if (window.viewManager) {
+            window.viewManager.loadView("home");
+          }
         } else {
           console.error(`❌ [AUTH] Login fallit - no authToken:`, data);
           throw new Error("Credencials incorrectes");
@@ -289,6 +350,10 @@ class AuthManager {
         ...config.authentication,
         username: this.currentCredentials.username,
         token: this.currentCredentials.token,
+        // Persist Base64 version of password only if user opted in
+        ...(this.savedPlainPassword
+          ? { passwordEnc: btoa(this.savedPlainPassword) }
+          : { passwordEnc: undefined }),
       };
 
       await window.electronAPI.setConfig(config);
@@ -298,9 +363,16 @@ class AuthManager {
   }
 
   async updateSocketConnection() {
-    // Update socket connection with new credentials
+    if (!this.isAuthenticated || !this.currentCredentials?.token) {
+      console.log(
+        "[AUTH] updateSocketConnection ignorat (no autenticat o sense token)"
+      );
+      return;
+    }
     if (window.updateSocketCredentials) {
       window.updateSocketCredentials(this.serverUrl, this.currentCredentials);
+    } else {
+      console.log("[AUTH] updateSocketCredentials no disponible encara");
     }
   }
 
@@ -403,10 +475,29 @@ class AuthManager {
     this.isAuthenticated = false;
     this.currentCredentials = null;
     this.authToken = null;
+    this.savedPlainPassword = null;
 
     // Clear saved credentials
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
+
+    // Best-effort removal of stored password in config
+    if (window.electronAPI?.getConfig && window.electronAPI?.setConfig) {
+      (async () => {
+        try {
+          const cfg = (await window.electronAPI.getConfig()) || {};
+          if (cfg.authentication && cfg.authentication.passwordEnc) {
+            delete cfg.authentication.passwordEnc;
+            await window.electronAPI.setConfig(cfg);
+          }
+        } catch (e) {
+          console.warn(
+            "[AUTH] No s'ha pogut eliminar la contrasenya guardada:",
+            e
+          );
+        }
+      })();
+    }
 
     // Show login again
     this.showLogin();

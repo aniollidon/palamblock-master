@@ -1,11 +1,46 @@
 // Cast sidebar logic for /admin/screens
 // Mostra i amaga la sidebar, gestiona la previsualització i la captura de pantalla
 
-// Socket per cast (ws-cast) - connecta al mateix origen de la pàgina
-const castSocket = io({
-  path: "/ws-cast",
-  transports: ["websocket", "polling"],
+// Socket per cast (ws-cast) - ara es crea després de l'autenticació
+let castSocket = null;
+
+function initCastSocket() {
+  if (castSocket) return castSocket;
+  if (!window.authManager || !window.authManager.isAuthenticated) {
+    return null; // esperem autenticació
+  }
+  // Reutilitza mateix origen (assumim mateix host que admin) i envia query si hi ha token
+  try {
+    const credentials = window.authManager.getCredentials();
+    castSocket = io({
+      path: "/ws-cast",
+      transports: ["websocket", "polling"],
+      query: credentials?.token
+        ? { user: credentials.username, authToken: credentials.token }
+        : {},
+    });
+    // Notificació opcional
+    castSocket.on("connect", () =>
+      console.log("[CAST] Connectat canal cast (ws-cast)")
+    );
+    castSocket.on("connect_error", (e) =>
+      console.warn("[CAST] Error connexió cast:", e.message)
+    );
+  } catch (e) {
+    console.warn("[CAST] No s'ha pogut crear castSocket encara", e);
+  }
+  return castSocket;
+}
+
+// Intent immediat i també quan el socket principal estigui llest
+window.addEventListener("socket:ready", () => {
+  if (!castSocket) initCastSocket();
 });
+// També quan auth es valida (token reutilitzat)
+window.addEventListener("auth:ready", () => {
+  if (!castSocket) initCastSocket();
+});
+setTimeout(() => initCastSocket(), 200); // fallback lazy
 
 // Elements
 
