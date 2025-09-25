@@ -1,0 +1,28 @@
+{
+  "server": {
+    "url": "http://localhost:4000",
+    "port": 4000,
+    "protocol": "http"
+  },
+  "authentication": {
+    "token": "",
+    "username": "admin",
+    "rememberCredentials": true
+  },
+  "ui": {
+    "theme": "light",
+    "language": "ca",
+    "refreshInterval": 5000,
+    "autoConnect": true
+  },
+  "window": {
+    "width": 1200,
+    "height": 800,
+    "fullscreen": false,
+    "alwaysOnTop": false
+  },
+  "debug": {
+    "enabled": false,
+    "logLevel": "info"
+  }
+}

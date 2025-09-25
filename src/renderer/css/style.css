@@ -1,0 +1,406 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-size: 12px;
+    height: 100%;
+}
+
+html{
+    height: 100%;
+}
+
+.browsers{
+    margin: 10px 0 10px 10px
+}
+.browser-icon {
+    width: 70px;
+}
+
+.browser-version{
+    position: absolute;
+    left: 19px;
+    top: 27px;
+    color: #ffffff;
+    font-weight: 800;
+    background: black;
+    border-radius: 16px;
+    padding: 2px 9px;
+}
+
+.bootbox-body{
+    font-size: 14px;
+}
+.modal-message{
+    font-size: medium;
+    padding: 0 10px;
+    text-align: justify;
+}
+
+.historial-close{
+    position: absolute;
+    right: 0;
+}
+
+.informacions{
+    margin: 10px 0 0 0;
+}
+.browser-info {
+    position: absolute;
+    transform: translateX(-59px) translateY(-17px);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-direction: row;
+    opacity: 50%;
+}
+
+.chrome-tabs {
+    padding-left: 50px;
+}
+
+.browser-separator {
+    width: 1px;
+    height: 100%;
+    background: #e8eaed;
+}
+
+.chrome-tab-blocked {
+    text-decoration: line-through;
+}
+
+.grup-buttons{
+    min-width: fit-content;
+    margin-left: 10px;
+}
+
+
+.grup-opcions{
+    display: flex;
+}
+/*******/
+/* nav */
+.card {
+    max-width: 25rem;
+    padding: 0;
+    border: none;
+    border-radius: 0.5rem;
+}
+
+a.active {
+    border-bottom: 2px solid #55c57a !important;
+}
+
+.nav-link {
+    color: rgb(110, 110, 110);
+    font-weight: 500;
+}
+.nav-link:hover {
+    color: #55c57a;
+}
+
+.nav-pills .nav-link.active {
+    color: #55c57a;
+    background-color: transparent;
+    border-bottom: 2px solid #55c57a;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: transparent;
+    border-bottom: 2px solid #55c57a;
+    font-weight: 600;
+}
+
+.nav-tabs {
+    border-bottom: 1px solid #e7e7e7;
+}
+
+.text-small {
+    font-size: 0.875rem;
+}
+
+.profile-header-tab .nav-item {
+    color: #55c57a;
+}
+
+/* in style sheet */
+.profile-header-tab.nav-tabs .nav-link {
+    color: #55c57a;
+}
+
+/*******/
+/* sidebar */
+.sidebar{
+    min-width: 380px !important;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    border-left: 1px solid rgba(0, 0, 0, .1);
+}
+
+.scrollarea{
+    /* width */
+    width: 380px;
+    overflow-y: auto;
+    height: 400px;
+}
+/* width */
+.scrollarea::-webkit-scrollbar {
+    width: 7px;
+}
+
+/* Track */
+.scrollarea::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+/* Handle */
+.scrollarea::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+}
+
+/* Handle on hover */
+.scrollarea::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.sidebarContent{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/**************/
+
+.grup-edit-buttons{
+    display: flex;
+}
+.edit-wordonly-search{
+    width: 30px;
+    height: 30px;
+    background: #6c6c6c;
+    border-radius: 5px;
+    margin: 2px 5px 0 0;
+    border: none;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.edit-wordonly-search.active{
+    background: #ffb600 !important;
+    color: black;
+}
+
+.alumne-container {
+    margin: 10px;
+    padding: 0;
+    border-bottom: 1px solid #ccc;
+}
+
+.alumne-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0 10px 0;
+}
+
+.alumne-buttons{
+    min-width: fit-content;
+}
+
+.normes-list {
+    margin: 10px;
+}
+
+.norma {
+    padding: 5px 10px;
+    margin: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.norma-info {
+    flex-grow: 1;
+}
+
+.norma-actions {
+    margin-left: 10px;
+}
+
+.browsers-list {
+    min-height: 80px;
+    margin-left: 10px;
+}
+
+.browser-container {
+    position: relative;
+    min-height: 80px;
+    background-color: #fff;
+}
+
+/* TAB CONTENT CSS PER HOSTJAT AL MODAL */
+.tab-content-height{
+    min-height: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.modal-normes{
+    min-width: 700px;
+}
+
+.marge{
+    margin: 0 20px;
+}
+
+.row-input {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.row-input .form-control {
+    flex: 1;
+}
+
+.norma-temps {
+    background: #ddd;
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 10px;
+    color: #555;
+}
+
+.norma-temps.expired {
+    background: #f5c6cb;
+    color: #721c24;
+}
+
+.main-content{
+    margin-right: 0;
+    transition: margin-right 0.3s ease;
+}
+
+.main-content.sidebar-open {
+    margin-right: 380px;
+}
+
+#historialSidebar {
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+}
+
+#historialSidebar.show {
+    transform: translateX(0);
+}
+
+.historial-entry {
+    padding: 8px 15px;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+}
+
+.historial-entry:hover {
+    background-color: #f8f9fa;
+}
+
+.historial-time {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-bottom: 2px;
+}
+
+.historial-url {
+    font-weight: 500;
+    color: #495057;
+    word-break: break-all;
+}
+
+.historial-title {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-top: 2px;
+}
+
+.stats-item {
+    padding: 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.stats-browser {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.stats-time {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+.sorted-host {
+    padding: 10px 15px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.sorted-host-name {
+    font-weight: 500;
+    color: #495057;
+}
+
+.sorted-host-count {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 3px;
+}
+
+.historial-content.active {
+    display: block !important;
+}
+
+.round {
+    border-radius: 10px !important;
+}
+
+.d-none {
+    display: none !important;
+}
+
+.fade {
+    transition: opacity 0.15s linear;
+}
+
+.fade:not(.show) {
+    opacity: 0;
+}
+
+.nav-tabs .nav-item.show .nav-link,
+.nav-tabs .nav-link.active {
+    color: #55c57a;
+    background-color: transparent;
+    border-color: transparent transparent #55c57a transparent;
+    border-width: 0 0 2px 0;
+    font-weight: 600;
+}
+
+.btn-group > .btn:not(:first-child) {
+    margin-left: 5px;
+}
+
+.alumne-buttons .btn {
+    margin-right: 5px;
+}
+
+.alumne-buttons .btn:last-child {
+    margin-right: 0;
+}

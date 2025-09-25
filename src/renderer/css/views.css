@@ -1,0 +1,50 @@
+/* Status indicators for screens */
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-indicator.online {
+    background-color: #28a745;
+    box-shadow: 0 0 6px rgba(40, 167, 69, 0.6);
+}
+
+.status-indicator.offline {
+    background-color: #6c757d;
+}
+
+/* View transitions */
+main {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.view-loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Screen controls styling */
+.card .btn-group .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.card .status-indicator {
+    margin-right: 0.25rem;
+}
+
+/* Brightness range styling */
+.form-range::-webkit-slider-thumb {
+    background-color: #007bff;
+}
+
+.form-range::-moz-range-thumb {
+    background-color: #007bff;
+}
+
+/* Navigation buttons */
+.grup-buttons .btn svg {
+    vertical-align: -0.125em;
+}

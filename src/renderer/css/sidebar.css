@@ -1,0 +1,242 @@
+/* Estils per la sidebar */
+
+.sidebar {
+  background-color: var(--pb-sidebar-bg);
+  border-right: 1px solid var(--pb-border);
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  z-index: 1020;
+}
+
+.sidebar .position-sticky {
+  position: sticky !important;
+  top: 0;
+}
+
+/* Sidebar heading */
+.sidebar-heading {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0;
+}
+
+.sidebar-heading i {
+  margin-right: 0.5rem;
+}
+
+/* Alumnes filter */
+#filterAlumnes {
+  border: 1px solid var(--pb-border);
+  border-radius: 0.375rem;
+}
+
+#filterAlumnes:focus {
+  border-color: var(--pb-primary);
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Navigation items */
+.nav-pills .nav-link {
+  color: var(--pb-dark);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.25rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-pills .nav-link:hover {
+  background-color: rgba(13, 110, 253, 0.1);
+  color: var(--pb-primary);
+}
+
+.nav-pills .nav-link.active {
+  background-color: var(--pb-primary);
+  color: white;
+}
+
+/* Alumne item */
+.alumne-item {
+  position: relative;
+}
+
+.alumne-item .nav-link {
+  padding-left: 2.5rem;
+}
+
+.alumne-status {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--pb-secondary);
+}
+
+.alumne-status.online {
+  background-color: var(--pb-success);
+  animation: pulse 2s infinite;
+}
+
+.alumne-status.away {
+  background-color: var(--pb-warning);
+}
+
+.alumne-status.offline {
+  background-color: var(--pb-secondary);
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.alumne-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.alumne-badges {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.alumne-badge {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  background-color: var(--pb-info);
+  color: white;
+}
+
+.alumne-badge.tabs {
+  background-color: var(--pb-info);
+}
+
+.alumne-badge.blocked {
+  background-color: var(--pb-danger);
+}
+
+.alumne-badge.warned {
+  background-color: var(--pb-warning);
+  color: var(--pb-dark);
+}
+
+/* Grup item */
+.grup-item .nav-link {
+  font-weight: 600;
+  color: var(--pb-secondary);
+  font-size: 0.8125rem;
+}
+
+.grup-item .nav-link:hover {
+  background-color: rgba(108, 117, 125, 0.1);
+  color: var(--pb-secondary);
+}
+
+.grup-item.active .nav-link {
+  background-color: var(--pb-secondary);
+  color: white;
+}
+
+/* Counter badges */
+#alumnesCount {
+  font-size: 0.675rem;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--pb-primary);
+}
+
+/* Scrollbar for sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar.show {
+    transform: translateX(0);
+  }
+}
+
+/* Sidebar toggle button (for mobile) */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 70px;
+  left: 1rem;
+  z-index: 1030;
+  background: var(--pb-primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Empty states */
+.sidebar-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--pb-secondary);
+}
+
+.sidebar-empty i {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.sidebar-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+}

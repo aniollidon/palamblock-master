@@ -1,0 +1,6 @@
+{
+  "name": "palammaster",
+  "main": "src/main.js",
+  "homepage": "./",
+  "description": "Aplicació d'administració per PalamBlock"
+}
