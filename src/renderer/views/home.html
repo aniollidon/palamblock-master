@@ -1,25 +1,29 @@
-<div class="d-flex flex-column justify-content-center align-items-center" style="min-height:80vh;">
-  <div class="text-center mb-5">
-    <img src="images/palamblock-logo.png" alt="PalamBlock" style="max-width:260px;width:50%;height:auto;filter:drop-shadow(0 4px 12px rgba(0,0,0,.35));" />
-    <h1 class="mt-4 fw-bold" style="letter-spacing:1px;">PalamBlock Admin</h1>
-    <p class="text-muted mb-0">Selecciona una àrea per començar</p>
-  </div>
-  <div class="d-flex flex-wrap justify-content-center gap-4">
-    <button class="btn btn-primary btn-lg px-5 py-3" onclick="window.viewManager.loadView('browsers')">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-globe2 me-2" viewBox="0 0 16 16">
-        <path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m7.5-6.923c-.67.204-1.335.82-1.887 1.855A13 13 0 0 0 5.145 4H7.5zM4.51 4a14 14 0 0 1 .722-1.951A7 7 0 0 0 2.255 4zM4.045 5.5h2.634a25.6 25.6 0 0 0-.201 3H3.904a12.4 12.4 0 0 1 .14-3m.202 4.5h2.23c.045 1.01.164 2.01.355 2.951a12.4 12.4 0 0 1-2.037-2.951m2.23-5.5H4.045a12.4 12.4 0 0 0-.14 3h2.574c.03-1.052.123-2.063.202-3M8.5 4h2.355a13 13 0 0 0-.468-1.068C9.835 1.897 9.17 1.281 8.5 1.077zm2.945 0h2.49a7 7 0 0 0-2.977-1.951c.27.558.498 1.24.676 1.951M8.5 5.5v3h-2.7a24 24 0 0 1 .2-3zm0 4.5h-2.5c.058.987.175 1.994.363 2.938.542 1.027 1.198 1.649 1.863 1.856zM9.8 5.5h-1.3v3h1.5a24 24 0 0 0-.2-3m-1.3 4.5V13.29c.63-.2 1.264-.783 1.788-1.772.19-.944.306-1.95.364-2.938zm1.839 4.451A7 7 0 0 0 13.745 10h-2.494a13.7 13.7 0 0 1-.411 1.949m-.63-6.451c.08 1 .173 2.011.202 3h2.574a12.4 12.4 0 0 0-.14-3zM8.5 14.923c.67-.204 1.335-.82 1.887-1.855.178-.353.338-.732.468-1.068H8.5zM11.49 12c.26-.627.482-1.314.652-2h2.603a7 7 0 0 1-3.255 2m.794-3c.06-.986.064-1.99.008-2.951H13.98c.112.955.113 1.957.002 2.951z"/>
-      </svg>
-      Navegadors
-    </button>
-    <button class="btn btn-outline-info btn-lg px-5 py-3" onclick="window.viewManager.loadView('screens')">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-display me-2" viewBox="0 0 16 16">
-         <path d="M0 4s0-2 2-2h12s2 0 2 2v6s0 2-2 2h-4q0 1 .25 1.5H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h.75Q6 13 6 12H2s-2 0-2-2z"/>
-      </svg>
-      Pantalles
-    </button>
-  </div>
-  <div class="mt-5 small text-center">
-    <div id="homeUserInfo" class="text-muted mb-1" style="font-size:0.9rem;">&nbsp;</div>
-    <a href="#" id="changeCredsLink" class="text-decoration-none">Canvia la sessió</a>
-  </div>
+<div class="d-flex flex-column justify-content-center align-items-center home-wrapper">
+    <div class="text-center mb-5">
+        <img src="images/palamblock-logo.png" alt="PalamBlock" class="home-logo" />
+        <h1 class="mt-4 fw-bold home-title">PalamBlock Admin</h1>
+        <p class="text-muted mb-0">Selecciona una àrea per començar</p>
+    </div>
+    <div class="d-flex flex-wrap justify-content-center gap-4">
+        <button class="btn btn-primary btn-lg px-5 py-3" onclick="window.viewManager.loadView('browsers')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor"
+                class="bi bi-globe-americas me-2" viewBox="0 0 16 16">
+                <path
+                    d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0M2.04 4.326c.325 1.329 2.532 2.54 3.717 3.19.48.263.793.434.743.484q-.121.12-.242.234c-.416.396-.787.749-.758 1.266.035.634.618.824 1.214 1.017.577.188 1.168.38 1.286.983.082.417-.075.988-.22 1.52-.215.782-.406 1.48.22 1.48 1.5-.5 3.798-3.186 4-5 .138-1.243-2-2-3.5-2.5-.478-.16-.755.081-.99.284-.172.15-.322.279-.51.216-.445-.148-2.5-2-1.5-2.5.78-.39.952-.171 1.227.182.078.099.163.208.273.318.609.304.662-.132.723-.633.039-.322.081-.671.277-.867.434-.434 1.265-.791 2.028-1.12.712-.306 1.365-.587 1.579-.88A7 7 0 1 1 2.04 4.327Z" />
+            </svg>
+            Navegadors
+        </button>
+        <button class="btn btn-outline-info btn-lg px-5 py-3" onclick="window.viewManager.loadView('screens')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor"
+                class="bi bi-display me-2" viewBox="0 0 16 16">
+                <path
+                    d="M0 4s0-2 2-2h12s2 0 2 2v6s0 2-2 2h-4q0 1 .25 1.5H11a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1h.75Q6 13 6 12H2s-2 0-2-2zm1.398-.855a.76.76 0 0 0-.254.302A1.5 1.5 0 0 0 1 4.01V10c0 .325.078.502.145.602q.105.156.302.254a1.5 1.5 0 0 0 .538.143L2.01 11H14c.325 0 .502-.078.602-.145a.76.76 0 0 0 .254-.302 1.5 1.5 0 0 0 .143-.538L15 9.99V4c0-.325-.078-.502-.145-.602a.76.76 0 0 0-.302-.254A1.5 1.5 0 0 0 13.99 3H2c-.325 0-.502.078-.602.145" />
+            </svg>
+            Pantalles
+        </button>
+    </div>
+    <div class="mt-5 small text-center">
+        <div id="homeUserInfo" class="text-muted mb-1">&nbsp;</div>
+        <a href="#" id="changeCredsLink" class="text-decoration-none">Canvia la sessió</a>
+    </div>
 </div>

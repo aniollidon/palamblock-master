@@ -48,3 +48,19 @@ main {
 .grup-buttons .btn svg {
     vertical-align: -0.125em;
 }
+
+/* Browsers view extracted inline styles */
+.d-none-force { display: none !important; }
+.input-box.position-relative { position: relative; }
+.input-box .mb-0 { margin-bottom: 0; }
+.hist-search-icon { position:absolute; top:8px; right:7px; color:darkgray; }
+.header-gap { gap:12px; }
+.lh-0 { line-height:0; }
+.brand-img { height:34px; width:auto; display:block; }
+.header-title-sm { font-size:14px; letter-spacing:.5px; }
+.grup-selector { min-width:220px; }
+
+/* Browsers header new layout */
+.action-buttons-row button svg { vertical-align: -0.125em; }
+.action-buttons-row {     justify-content: flex-end; }
+.pbk-header .dropdown-menu .active { font-weight:600; }

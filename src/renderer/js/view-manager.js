@@ -143,6 +143,17 @@ class ViewManager {
             // Si ja s'havia demanat abans, forcem un refresc de dades al re-entrar
             mod.refreshBrowsersData("reenter");
           }
+          // Enllaç del dropdown per canviar a pantalles
+          setTimeout(() => {
+            const link = document.getElementById("navSwitchScreens");
+            if (link && !link.dataset._bound) {
+              link.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.loadView("screens");
+              });
+              link.dataset._bound = "1";
+            }
+          }, 0);
         } catch (e) {
           console.warn("[VIEW] No s'ha pogut importar browsers_view.js:", e);
         }

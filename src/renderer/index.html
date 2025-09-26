@@ -1,232 +1,320 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>PalamBlock Admin</title>
-    <link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
-          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link href="css/tabs.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <link href="css/menu.css" rel="stylesheet">
+    <link href="css/views.css" rel="stylesheet">
+    <link href="css/home.css" rel="stylesheet">
     <link rel="icon" href="images/pbicon.ico" type="image/x-icon">
 </head>
+
 <body>
 
-<!-- Modal Login -->
-<div aria-hidden="true" aria-labelledby="loginModalLabel" class="modal fade" id="loginModal" role="dialog" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="loginModalLabel">
-                    <img src="images/palamblock-logo.png" width="24" height="24" class="me-2" alt="PalamBlock">
-                    Autenticació PalamBlock
-                </h5>
-            </div>
-            <div class="modal-body">
-                <div id="loginAlert" class="alert alert-danger d-none" role="alert">
-                    <strong>Error:</strong> <span id="loginErrorMessage"></span>
+    <!-- Modal Login -->
+    <div aria-hidden="true" aria-labelledby="loginModalLabel" class="modal fade" id="loginModal" role="dialog"
+        tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="loginModalLabel">
+                        <img src="images/palamblock-logo.png" width="24" height="24" class="me-2" alt="PalamBlock">
+                        Autenticació PalamBlock
+                    </h5>
                 </div>
-                <form id="loginForm">
-                    <div class="mb-3">
-                        <label for="serverUrl" class="form-label">Servidor PalamSRV</label>
-                        <input type="url" class="form-control" id="serverUrl" placeholder="http://localhost:3000" required>
-                        <div class="form-text">URL del servidor PalamSRV (ex: http://192.168.1.100:3000)</div>
+                <div class="modal-body">
+                    <div id="loginAlert" class="alert alert-danger d-none" role="alert">
+                        <strong>Error:</strong> <span id="loginErrorMessage"></span>
                     </div>
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Usuari</label>
-                        <input type="text" class="form-control" id="username" placeholder="admin" required>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="serverUrl" class="form-label">Servidor PalamSRV</label>
+                            <input type="url" class="form-control" id="serverUrl" placeholder="http://localhost:3000"
+                                required>
+                            <div class="form-text">URL del servidor PalamSRV (ex: http://192.168.1.100:3000)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Usuari</label>
+                            <input type="text" class="form-control" id="username" placeholder="admin" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contrasenya</label>
+                            <input type="password" class="form-control" id="password" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberCredentials">
+                            <label class="form-check-label" for="rememberCredentials">Recordar credencials</label>
+                        </div>
+                    </form>
+                    <div id="loginSpinner" class="text-center d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Connectant...</span>
+                        </div>
+                        <p class="mt-2">Connectant amb el servidor...</p>
                     </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Contrasenya</label>
-                        <input type="password" class="form-control" id="password" required>
-                    </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="rememberCredentials">
-                        <label class="form-check-label" for="rememberCredentials">Recordar credencials</label>
-                    </div>
-                </form>
-                <div id="loginSpinner" class="text-center d-none">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Connectant...</span>
-                    </div>
-                    <p class="mt-2">Connectant amb el servidor...</p>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="testConnectionBtn">Prova connexió</button>
-                <button type="submit" form="loginForm" class="btn btn-primary" id="loginBtn">Connecta</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="testConnectionBtn">Prova
+                        connexió</button>
+                    <button type="submit" form="loginForm" class="btn btn-primary" id="loginBtn">Connecta</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Modal Normes (mantinguda) -->
-<div class="modal-content d-none" id="pbk_modal_normes_container">
-    <div class="modal-header">
-        <h5 class="modal-title" id="pbk_modal_normes_title">Normes per ALUMNE</h5>
-        <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
-    </div>
-    <div id="pbk_modal_normes"></div>
-    <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Tanca</button>
-    </div>
-</div>
-
-<!-- Modal Bloqueja Web -->
-<div aria-hidden="true" aria-labelledby="bloquejaModalWebLabel" class="modal fade text-left modal-normes" id="bloquejaModalWeb"
-     role="dialog"
-     tabindex="-1">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <!-- nav options -->
-            <ul class="nav nav-pills mb-3 shadow-sm" role="tablist">
-                <li class="nav-item">
-                    <a aria-controls="pills-blocalumnweb" aria-selected="true" class="nav-link active"
-                       data-bs-toggle="pill" href="#pills-blocalumnweb" id="pills-blocwebalumn-tab" role="tab">Bloqueja alumne
-                        ALUMNE</a>
-                </li>
-                <li class="nav-item">
-                    <a aria-controls="pills-blocgrupweb" aria-selected="false" class="nav-link" data-bs-toggle="pill"
-                       href="#pills-blocgrupweb" id="pills-blocwebgrup-tab" role="tab">Bloqueja grup GRUP</a>
-                </li>
-            </ul>
-            <!-- content -->
-            <div class="tab-content">
-                <div aria-labelledby="pills-blocwebalumn-tab" class="tab-pane marge fade show active"
-                     id="pills-blocalumnweb"
-                     role="tabpanel">
-                    Crea una nova norma de bloqueig per l'alumne. Aquesta norma s'aplicarà a tots els navegadors de
-                    l'alumne.
+    <!-- Modal Normes -->
+    <div aria-hidden="true" aria-labelledby="normesModalLabel" class="modal fade text-left" id="normesModal"
+        role="dialog" tabindex="-1">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pbk_modal_normes_title">Normes per ALUMNE</h5>
+                    <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
                 </div>
-                <div aria-labelledby="pills-blocwebgrup-tab" class="tab-pane marge fade" id="pills-blocgrupweb"
-                     role="tabpanel">
-                    Crea una nova norma de bloqueig per el grup. Aquesta norma s'aplicarà a tots els navegadors dels
-                    alumnes del grup.
+                <div id="pbk_modal_normes"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Tanca</button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="form marge">
-                <div class="form-group" style="margin-bottom: 10px">
-                    <label for="pbk_modalblockweb_severity">Tipus de bloqueig</label>
-                    <select class="form-control round" id="pbk_modalblockweb_severity">
-                        <option value="block">Bloca</option>
-                        <option value="warn">Només avís</option>
-                    </select>
+    <!-- Modal Bloqueja Web -->
+    <div aria-hidden="true" aria-labelledby="bloquejaModalWebLabel" class="modal fade text-left modal-normes"
+        id="bloquejaModalWeb" role="dialog" tabindex="-1">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bloquejaModalWebLabel">Crear norma</h5>
+                    <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
                 </div>
-                <div class="form-group">
-                    <div style="display: flex;justify-content: space-between;">
-                        <label for="pbk_modalblockweb_host">Host</label>
-                        <div class="form-check form-switch">
-                            <input checked class="form-check-input" id="pbk_modalblockweb_host_switch" type="checkbox">
-                        </div>
+                <!-- nav options -->
+                <ul class="nav nav-pills mb-3 shadow-sm" role="tablist">
+                    <li class="nav-item">
+                        <a aria-controls="pills-blocalumnweb" aria-selected="true" class="nav-link active"
+                            data-bs-toggle="pill" href="#pills-blocalumnweb" id="pills-blocwebalumn-tab"
+                            role="tab">Bloqueja alumne
+                            ALUMNE</a>
+                    </li>
+                    <li class="nav-item">
+                        <a aria-controls="pills-blocgrupweb" aria-selected="false" class="nav-link"
+                            data-bs-toggle="pill" href="#pills-blocgrupweb" id="pills-blocwebgrup-tab"
+                            role="tab">Bloqueja grup GRUP</a>
+                    </li>
+                </ul>
+                <!-- content -->
+                <div class="tab-content">
+                    <div aria-labelledby="pills-blocwebalumn-tab" class="tab-pane marge fade show active"
+                        id="pills-blocalumnweb" role="tabpanel">
+                        Crea una nova norma de bloqueig per l'alumne. Aquesta norma s'aplicarà a tots els navegadors de
+                        l'alumne.
                     </div>
-                    <input class="form-control" id="pbk_modalblockweb_host" placeholder="exemple.cat"/>
-
-                    <div style="display: flex;justify-content: space-between;">
-                        <label for="pbk_modalblockweb_pathname">Path</label>
-                        <div class="form-check form-switch">
-                            <input checked class="form-check-input" id="pbk_modalblockweb_pathname_switch"
-                                   type="checkbox">
-                        </div>
+                    <div aria-labelledby="pills-blocwebgrup-tab" class="tab-pane marge fade" id="pills-blocgrupweb"
+                        role="tabpanel">
+                        Crea una nova norma de bloqueig per el grup. Aquesta norma s'aplicarà a tots els navegadors dels
+                        alumnes del grup.
                     </div>
+                </div>
 
-                    <input class="form-control" id="pbk_modalblockweb_pathname" placeholder="/path/"/>
-
-                    <div style="display: flex;justify-content: space-between;">
-                        <label for="pbk_modalblockweb_search">Cerca</label>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" id="pbk_modalblockweb_search_switch" type="checkbox">
-                        </div>
+                <div class="form marge">
+                    <div class="form-group" style="margin-bottom: 10px">
+                        <label for="pbk_modalblockweb_severity">Tipus de bloqueig</label>
+                        <select class="form-control round" id="pbk_modalblockweb_severity">
+                            <option value="block">Bloca</option>
+                            <option value="warn">Només avís</option>
+                        </select>
                     </div>
-
-                    <input class="form-control" id="pbk_modalblockweb_search" placeholder=""/>
-
-                    <div style="display: flex;justify-content: space-between;">
-                        <label for="pbk_modalblockweb_title">Titol</label>
-                        <div class="grup-edit-buttons">
-                           <button class="edit-wordonly-search" id="pbk_modalblockweb_title_optionW"
-                                   title="Filtra paraules senceres"> W </button>
+                    <div class="form-group">
+                        <div style="display: flex;justify-content: space-between;">
+                            <label for="pbk_modalblockweb_host">Host</label>
                             <div class="form-check form-switch">
-                                <input class="form-check-input" id="pbk_modalblockweb_title_switch" type="checkbox">
+                                <input checked class="form-check-input" id="pbk_modalblockweb_host_switch"
+                                    type="checkbox">
                             </div>
                         </div>
-                    </div>
+                        <input class="form-control" id="pbk_modalblockweb_host" placeholder="exemple.cat" />
 
-                    <input class="form-control" id="pbk_modalblockweb_title" placeholder=""/>
-                    <p></p>
-
-                    <label>Durada</label>
-                    <div>
-                        <div>
-                            <select id="pbk_modalblockweb-durada" class="form-control round" >
-                            </select>
+                        <div style="display: flex;justify-content: space-between;">
+                            <label for="pbk_modalblockweb_pathname">Path</label>
+                            <div class="form-check form-switch">
+                                <input checked class="form-check-input" id="pbk_modalblockweb_pathname_switch"
+                                    type="checkbox">
+                            </div>
                         </div>
+
+                        <input class="form-control" id="pbk_modalblockweb_pathname" placeholder="/path/" />
+
+                        <div style="display: flex;justify-content: space-between;">
+                            <label for="pbk_modalblockweb_search">Cerca</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" id="pbk_modalblockweb_search_switch" type="checkbox">
+                            </div>
+                        </div>
+
+                        <input class="form-control" id="pbk_modalblockweb_search" placeholder="" />
+
+                        <div style="display: flex;justify-content: space-between;">
+                            <label for="pbk_modalblockweb_title">Titol</label>
+                            <div class="grup-edit-buttons">
+                                <button class="edit-wordonly-search" id="pbk_modalblockweb_title_optionW"
+                                    title="Filtra paraules senceres"> W </button>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" id="pbk_modalblockweb_title_switch" type="checkbox">
+                                </div>
+                            </div>
+                        </div>
+
+                        <input class="form-control" id="pbk_modalblockweb_title" placeholder="" />
+                        <p></p>
+
+                        <label>Durada</label>
+                        <div>
+                            <div>
+                                <select id="pbk_modalblockweb-durada" class="form-control round">
+                                </select>
+                            </div>
+                        </div>
+                        <p></p>
                     </div>
-                    <p></p>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Tanca</button>
+                    <button class="btn btn-primary" id="pbk_modalblockweb_creanorma" type="button">Crea norma</button>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Tanca</button>
-                <button class="btn btn-primary" id="pbk_modalblockweb_creanorma" type="button">Crea norma</button>
+    <!-- Popup Menu -->
+    <div class="menu">
+        <ul class="menu-options">
+        </ul>
+    </div>
+
+    <!-- Modal debug (iframe a browser-test) -->
+    <div aria-hidden="true" aria-labelledby="debugModalLabel" class="modal fade text-left modal-xl" id="debugModal"
+        role="dialog" tabindex="-1" style="min-height: 500px; min-width: 700px;">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content" style="height: 465px; width: 700px;">
+                <div class="modal-header">
+                    <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <iframe id="debugIframe" src="browser-test.html"
+                    style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Popup Menu -->
-<div class="menu">
-    <ul class="menu-options">
-    </ul>
-</div>
-
-<!-- Modal confirmació -->
-<div class="modal fade" tabindex="-1" role="dialog"  id="pbk_modal_confirmacio">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Mans enlaire! N'estàs segur?</h5>
-                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
-            </div>
-            <div class="modal-body">
-                <div id="pbk_modal_confirmacio_missatge" class="modal-message">Modal body text goes here.</div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="pbk_modal_confirmacio_dacord">Continua</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel·la</button>
+    <!-- Modal confirmació -->
+    <div class="modal fade" tabindex="-1" role="dialog" id="pbk_modal_confirmacio">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Mans enlaire! N'estàs segur?</h5>
+                    <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="pbk_modal_confirmacio_missatge" class="modal-message">Modal body text goes here.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="pbk_modal_confirmacio_dacord">Continua</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel·la</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Contenidor únic de vistes -->
-<main id="appMain" class="pbk-main-container"></main>
+    <!-- Contenidor únic de vistes -->
+    <main id="appMain" class="pbk-main-container"></main>
 
-<!-- Boostrap JS -->
-<script crossorigin="anonymous"
-        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-<script src="js/ext/bootbox.all.min.js"></script>
-<!-- Socket.io -->
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<!-- Chrome pbk-modal-tabs JS (si encara necessari) -->
-<script src="https://unpkg.com/draggabilly@2.2.0/dist/draggabilly.pkgd.min.js"></script>
-<script src="js/tabs.js"></script>
-<!-- MD5 Library (needed for auth) -->
-<script src="js/md5.js"></script>
-<!-- Auth Manager -->
-<script src="js/auth.js"></script>
-<!-- Electron initialization -->
-<script src="js/electron-init.js"></script>
-<!-- View System CSS -->
-<link href="css/views.css" rel="stylesheet">
-<!-- Screens View (class definition available globally) -->
-<script src="js/screens_view.js"></script>
-<!-- View Manager (després de definir ScreensView) -->
-<script src="js/view-manager.js"></script>
+    <!-- Modal Llista Blanca (ported from legacy web) -->
+    <div aria-hidden="true" aria-labelledby="llistaBlancaModal" class="modal fade text-left" id="llistaBlancaModal"
+        tabindex="-1">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pbk_modal_llistablanca_title">Llista blanca per <span
+                            id="llb-nomgrup">GRUP</span></h5>
+                    <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <div id="llb-weblist-container" class="d-none">
+                                <label for="llb-weblist">Llista blanca</label>
+                                <div id="llb-weblist"></div>
+                            </div>
+                            <label>Afegeix</label>
+                            <div class="row-input">
+                                <input type="text" class="form-control" id="llb-webpage-input"
+                                    placeholder="Introdueix la URL del lloc web" />
+                                <button class="btn btn-primary" type="button"
+                                    id="llb-webpage-input-button">Afegeix</button>
+                            </div>
+                            <div class="row-input mt-2">
+                                <input type="text" class="form-control" id="llb-webtitle-input"
+                                    placeholder="Introdueix una cerca al títol" />
+                                <button class="btn btn-primary" type="button"
+                                    id="llb-webtitle-input-button">Afegeix</button>
+                            </div>
+                            <label class="mt-3">Llocs habituals</label>
+                            <div>
+                                <div class="row row-cols-2 g-1" id="llb-common"></div>
+                            </div>
+                            <br />
+                            <label>Durada</label>
+                            <div>
+                                <div>
+                                    <select id="llb-durada" class="form-control round"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div id="pbk_modal_llistablanca"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tancar</button>
+                    <button type="button" class="btn btn-primary" id="llb-confirma">Confirma i afegeix</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<!-- NOTA: browsers_view.js es carrega dinàmicament quan s'invoca la vista 'browsers' -->
+    <!-- Boostrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+        integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js"
+        integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y"
+        crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="js/ext/bootbox.all.min.js"></script>
+    <!-- Socket.io -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <!-- Chrome pbk-modal-tabs JS (si encara necessari) -->
+    <script src="https://unpkg.com/draggabilly@2.2.0/dist/draggabilly.pkgd.min.js"></script>
+    <script src="js/tabs.js"></script>
+    <!-- MD5 Library (needed for auth) -->
+    <script src="js/md5.js"></script>
+    <!-- Auth Manager -->
+    <script src="js/auth.js"></script>
+    <!-- Electron initialization -->
+    <script src="js/electron-init.js"></script>
+    <!-- View System CSS -->
+    <link href="css/views.css" rel="stylesheet">
+    <!-- Screens View (class definition available globally) -->
+    <script src="js/screens_view.js"></script>
+    <!-- View Manager (després de definir ScreensView) -->
+    <script src="js/view-manager.js"></script>
+
+    <!-- NOTA: browsers_view.js es carrega dinàmicament quan s'invoca la vista 'browsers' -->
 
 </body>
+
 </html>

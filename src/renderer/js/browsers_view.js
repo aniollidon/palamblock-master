@@ -14,7 +14,8 @@ function debugLog(...args) {
 }
 
 function errorSendLog(e) {
-  fetch("/api/v1/error/front", {
+  console.error("[BROWSERS_VIEW] Error intern:", e);
+  fetch(`${window.authManager?.serverUrl}/api/v1/error/front`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ error: e.stack }),

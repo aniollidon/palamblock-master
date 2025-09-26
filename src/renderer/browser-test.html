@@ -1,127 +1,259 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <title>Browser Test</title>
+    <title>Browser Test Window</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Google font -->
+    <link href="https://fonts.googleapis.com/css?family=Nunito:400,700" rel="stylesheet">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding: 20px;
+            font-family: Arial
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        /* The browser window */
+        .container {
+            border: 3px solid #f1f1f1;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+
+        /* Container for columns and the top "toolbar" */
+        .row {
+            padding: 10px;
+            background: #f1f1f1;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+
+        /* Create three unequal columns that floats next to each other */
+        .column {
+            float: left;
+        }
+
+        .left {
+            width: 15%;
+        }
+
+        .right {
+            width: 10%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .middle {
+            width: 75%;
+        }
+
+        /* Clear floats after the columns */
+        .row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        /* Three dots */
+        .dot {
+            margin-top: 4px;
+            height: 12px;
+            width: 12px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Style the input field */
+        input[type=text] {
+            width: 100%;
+            border-radius: 3px;
+            border: none;
+            background-color: white;
+            margin-top: -8px;
+            height: 25px;
+            color: #666;
+            padding: 5px;
+        }
+
+        /* Three bars (hamburger menu) */
+        .bar {
+            width: 17px;
+            height: 3px;
+            background-color: #aaa;
+            margin: 3px 0;
+            display: block;
+        }
+
+        /* Page content */
+        .content {
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .dt-panel {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px;
+            display: none;
+        }
+
+        .dt-panel .row {
+            background: transparent;
+            padding: 0;
+        }
+
+        .dt-panel button {
+            margin-left: 8px;
+        }
+
+        .logo {
+            height: 20px;
+            margin-left: 10px;
+        }
+
+        .pbButton {
+            cursor: pointer;
+        }
+
+        .pbButton:hover {
+            opacity: 0.7;
+        }
+
+
+        /**/
+
+        .action {
+            text-align: center;
+            padding: 10px 0;
+            background: #EBF0F5;
+        }
+
+        /* intentionally removed no-op state marker to satisfy linters */
+
+        .action-allowed .blocked,
+        .action-blocked .allowed {
+            display: none;
+        }
+
+        .action-unknown .blocked,
+        .action-unknown .allowed {
+            display: none;
+        }
+
+        .action-blocked h1,
+        .action-blocked p {
+            color: #FF5A5F;
+        }
+
+        h1 {
+            color: #88B04B;
+            font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+            font-weight: 900;
+            font-size: 35px;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #404F5E;
+            font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+            font-size: 20px;
             margin: 0;
         }
-        .test-container {
-            max-width: 600px;
+
+        i {
+            color: #9ABC66;
+            font-size: 85px;
+            line-height: 150px;
+            margin-left: -11px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px 60px;
+            border-radius: 4px;
+            box-shadow: 0 2px 3px #C8D0D8;
+            display: inline-block;
             margin: 0 auto;
         }
-        .test-item {
-            background: #f5f5f5;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
+
+        #dotdotdot:hover {
+            opacity: 0.7;
         }
-        .test-item h3 {
-            margin: 0 0 10px 0;
-            color: #333;
+
+        #dotdotdot {
+            cursor: pointer;
         }
-        .test-result {
-            font-weight: bold;
-        }
-        .success { color: #28a745; }
-        .error { color: #dc3545; }
-        .warning { color: #ffc107; }
     </style>
 </head>
+
 <body>
-    <div class="test-container">
-        <h2>PalamBlock - Test de Navegador</h2>
-        
-        <div class="test-item">
-            <h3>Test de Connexió</h3>
-            <p>Provant connexió amb el servidor PalamBlock...</p>
-            <div class="test-result" id="connectionTest">
-                <span class="warning">⏳ Provant...</span>
+
+    <div class="container">
+        <div class="row">
+            <div class="column left">
+                <span class="dot" style="background:#ED594A;"></span>
+                <span class="dot" style="background:#FDD800;"></span>
+                <span class="dot" style="background:#5AC05A;"></span>
+            </div>
+            <div class="column middle">
+                <div class="action-container">
+                    <input id="search" type="text" value="https://exemple.cat">
+                    <input id="title" type="text" value="Títol d'exemple" style="display: none">
+                </div>
+            </div>
+            <div class="column right">
+
+                <img src="images/palamblock-logo.png" id="pbButton" class="logo pbButton"
+                    title="Clica per canviar URL/títol">
+                <div style="float:right" id="dotdotdot">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </div>
             </div>
         </div>
-        
-        <div class="test-item">
-            <h3>Test de WebSocket</h3>
-            <p>Verificant connexió WebSocket amb l'administració...</p>
-            <div class="test-result" id="websocketTest">
-                <span class="warning">⏳ Provant...</span>
+
+        <div class="content">
+            <!-- Panell per triar data/hora (substitueix prompt d'Electron) -->
+            <div id="dtPanel" class="dt-panel">
+                <label for="datetimeInput">Tria data i hora</label>
+                <input id="datetimeInput" type="datetime-local" step="1">
+                <button id="datetimeApply">Aplica</button>
+                <button id="datetimeCancel">Cancel·la</button>
             </div>
-        </div>
-        
-        <div class="test-item">
-            <h3>Test d'Extensió</h3>
-            <p>Comprovant si l'extensió PalamBlock està instal·lada...</p>
-            <div class="test-result" id="extensionTest">
-                <span class="warning">⏳ Provant...</span>
+            <!--<h3>Títol de la pàgina</h3>
+        <p>...</p>-->
+            <div class="action action-allowed" id="check">
+                <div class="card">
+                    <div class="blocked"
+                        style="border-radius:150px;/* height:150px; */width:150px;background: #ffcaba;margin:0 auto;">
+                        <img style="height: 150px; width: 150px" src="images/emoji.png">
+                    </div>
+
+                    <div class="allowed"
+                        style="border-radius:150px; height:150px; width:150px; background: #F8FAF5; margin:0 auto;">
+                        <i class="checkmark">✓</i>
+                    </div>
+                    <h1> <span class="blocked"> No permesa</span> <span class="allowed"> Permesa</span></h1>
+                    <p><span id="pburl">Aquesta pàgina</span> <span class="blocked"> no està permesa </span> <span
+                            class="allowed"> està permesa </span> per a <span id="alumne">l'alumne</span>
+                        <span id="info_datetime"></span>
+                    </p>
+                </div>
             </div>
-        </div>
-        
-        <div class="test-item">
-            <h3>Informació del Navegador</h3>
-            <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
-            <p><strong>Navegador:</strong> <span id="browserName"></span></p>
-            <p><strong>Versió:</strong> <span id="browserVersion"></span></p>
+
         </div>
     </div>
 
-    <script>
-        // Test de connexió
-        setTimeout(() => {
-            const connectionTest = document.getElementById('connectionTest');
-            // Skip connection test in Electron app (no server URL available here)
-            connectionTest.innerHTML = '<span class="warning">⚠️ Test desactivat en Electron</span>';
-        }, 1000);
-
-        // Test de WebSocket
-        setTimeout(() => {
-            const websocketTest = document.getElementById('websocketTest');
-            try {
-                const socket = io();
-                socket.on('connect', () => {
-                    websocketTest.innerHTML = '<span class="success">✅ WebSocket OK</span>';
-                    socket.disconnect();
-                });
-                socket.on('connect_error', () => {
-                    websocketTest.innerHTML = '<span class="error">❌ WebSocket error</span>';
-                });
-            } catch (error) {
-                websocketTest.innerHTML = '<span class="error">❌ WebSocket no disponible</span>';
-            }
-        }, 2000);
-
-        // Test d'extensió
-        setTimeout(() => {
-            const extensionTest = document.getElementById('extensionTest');
-            if (window.palamblock) {
-                extensionTest.innerHTML = '<span class="success">✅ Extensió detectada</span>';
-            } else {
-                extensionTest.innerHTML = '<span class="warning">⚠️ Extensió no detectada</span>';
-            }
-        }, 3000);
-
-        // Informació del navegador
-        document.getElementById('userAgent').textContent = navigator.userAgent;
-        
-        const getBrowserInfo = () => {
-            const ua = navigator.userAgent;
-            if (ua.includes('Chrome') && !ua.includes('Edg')) {
-                return { name: 'Chrome', version: ua.match(/Chrome\/(\d+)/)?.[1] || 'Unknown' };
-            } else if (ua.includes('Edg')) {
-                return { name: 'Edge', version: ua.match(/Edg\/(\d+)/)?.[1] || 'Unknown' };
-            } else if (ua.includes('Firefox')) {
-                return { name: 'Firefox', version: ua.match(/Firefox\/(\d+)/)?.[1] || 'Unknown' };
-            } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
-                return { name: 'Safari', version: ua.match(/Version\/(\d+)/)?.[1] || 'Unknown' };
-            }
-            return { name: 'Unknown', version: 'Unknown' };
-        };
-        
-        const browserInfo = getBrowserInfo();
-        document.getElementById('browserName').textContent = browserInfo.name;
-        document.getElementById('browserVersion').textContent = browserInfo.version;
-    </script>
+    <!-- App JS -->
+    <script type="module" src="js/browser-test.js"></script>
 </body>
+
 </html>

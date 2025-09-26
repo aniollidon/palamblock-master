@@ -398,7 +398,7 @@ a.active {
 }
 
 .alumne-buttons .btn {
-    margin-right: 5px;
+    font-size: smaller;
 }
 
 .alumne-buttons .btn:last-child {

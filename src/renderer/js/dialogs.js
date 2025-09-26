@@ -607,8 +607,27 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   list.setAttribute("class", "list-group");
   container.appendChild(list);
 
+  // Defensive: si encara no tenim dades de normes per aquest alumne/grup
+  if (
+    !normesWebInfo ||
+    !normesWebInfo[whos] ||
+    !normesWebInfo[whos][whoid] ||
+    Object.keys(normesWebInfo[whos][whoid]).length === 0
+  ) {
+    const emptyState = document.createElement("div");
+    emptyState.setAttribute("class", "alert alert-info mt-2");
+    emptyState.innerHTML =
+      "Encara no hi ha cap norma definida o les dades estan carregant.";
+    container.appendChild(emptyState);
+    normesModal.show();
+    return;
+  }
+
+  let hadAny = false;
+
   for (const norma in normesWebInfo[whos][whoid]) {
     if (normesWebInfo[whos][whoid][norma].removed === true) continue;
+    hadAny = true;
 
     const listItem = document.createElement("div");
     listItem.setAttribute(
@@ -828,6 +847,12 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     }
     listItem.appendChild(itemText);
     list.appendChild(listItem);
+  }
+  if (!hadAny) {
+    const emptyState = document.createElement("div");
+    emptyState.setAttribute("class", "alert alert-info mt-2");
+    emptyState.innerHTML = "No s'ha trobat cap norma activa.";
+    container.appendChild(emptyState);
   }
   normesModal.show();
 }
