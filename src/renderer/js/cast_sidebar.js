@@ -12,7 +12,8 @@ function initCastSocket() {
   // Reutilitza mateix origen (assumim mateix host que admin) i envia query si hi ha token
   try {
     const credentials = window.authManager.getCredentials();
-    castSocket = io({
+    const baseUrl = window.authManager.serverUrl || undefined;
+    castSocket = io(baseUrl, {
       path: "/ws-cast",
       transports: ["websocket", "polling"],
       query: credentials?.token
@@ -119,11 +120,17 @@ function showSidebar() {
   }
   castSidebarContainer.style.display = "block";
   castSidebar.style.display = "flex";
+  // Shift main content
+  const mainContent = document.querySelector(".main-content");
+  if (mainContent) mainContent.classList.add("sidebar-open");
 }
 function hideSidebar() {
   castSidebar.style.display = "none";
   castSidebarContainer.style.display = "none";
   stopPreview();
+  // Unshift main content
+  const mainContent = document.querySelector(".main-content");
+  if (mainContent) mainContent.classList.remove("sidebar-open");
   // Reinicia mode override
   if (overrideRoom) {
     overrideRoom = null;
@@ -312,9 +319,10 @@ if (castShareMessageButton) {
     let secs = parseInt(castMessageTime?.value || "10", 10);
     if (isNaN(secs) || secs < 0) secs = 0;
     // Construeix URL cap a misssatge.html (sense tancar per clic)
-    const url = `${
-      location.origin
-    }/cast/misssatge.html?text=${encodeURIComponent(txt)}&temps=${secs}`;
+    const base = window.authManager?.serverUrl || "";
+    const url = `${base}/cast/misssatge.html?text=${encodeURIComponent(
+      txt
+    )}&temps=${secs}`;
 
     // Preparar dades de compartició
     const choice = { kind: "url", url: url, interactive: false };
@@ -896,90 +904,117 @@ function createPeerConnectionForViewer(viewerId) {
   return pc;
 }
 
-// Event listeners del socket cast
-castSocket.on("broadcaster-accepted", () => {
-  isBroadcasting = true;
-  if (currentKind === "url") {
-    setStatus(`Emetent URL a la sala: ${currentRoom}`);
-    showToast(`Emetent URL al grup: ${currentRoom}`);
-  } else {
-    setStatus(`Emetent a la sala: ${currentRoom}`);
-    showToast(`Emetent pantalla al grup: ${currentRoom}`);
-  }
-});
+// Event listeners del socket cast (enllaç segur i tardà)
+function bindCastSocketHandlersOnce() {
+  if (!castSocket) return;
+  if (window.__castHandlersBound) return;
+  window.__castHandlersBound = true;
 
-castSocket.on("viewer-offer", async ({ viewerId, sdp }) => {
-  if (!screenStream || currentKind !== "webrtc") return;
-  let pc = peersByViewerId.get(viewerId);
-  if (!pc) {
-    pc = createPeerConnectionForViewer(viewerId);
-    peersByViewerId.set(viewerId, pc);
-  }
-
-  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-  for (const track of screenStream.getTracks()) {
-    pc.addTrack(track, screenStream);
-  }
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  castSocket.emit("broadcaster-answer", {
-    room: currentRoom,
-    toViewerId: viewerId,
-    sdp: pc.localDescription,
+  castSocket.on("broadcaster-accepted", () => {
+    isBroadcasting = true;
+    if (currentKind === "url") {
+      setStatus(`Emetent URL a la sala: ${currentRoom}`);
+      showToast(`Emetent URL al grup: ${currentRoom}`);
+    } else {
+      setStatus(`Emetent a la sala: ${currentRoom}`);
+      showToast(`Emetent pantalla al grup: ${currentRoom}`);
+    }
   });
-});
 
-castSocket.on("ice-candidate", async ({ viewerId, candidate }) => {
-  const pc = peersByViewerId.get(viewerId);
-  if (!pc || !candidate) return;
-  try {
-    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-  } catch (e) {
-    console.warn("Error afegint ICE candidate", e);
-  }
-});
+  castSocket.on("viewer-offer", async ({ viewerId, sdp }) => {
+    if (!screenStream || currentKind !== "webrtc") return;
+    let pc = peersByViewerId.get(viewerId);
+    if (!pc) {
+      pc = createPeerConnectionForViewer(viewerId);
+      peersByViewerId.set(viewerId, pc);
+    }
 
-castSocket.on("viewer-left", ({ viewerId }) => {
-  const pc = peersByViewerId.get(viewerId);
-  if (pc) {
+    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    for (const track of screenStream.getTracks()) {
+      pc.addTrack(track, screenStream);
+    }
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    castSocket.emit("broadcaster-answer", {
+      room: currentRoom,
+      toViewerId: viewerId,
+      sdp: pc.localDescription,
+    });
+  });
+
+  castSocket.on("ice-candidate", async ({ viewerId, candidate }) => {
+    const pc = peersByViewerId.get(viewerId);
+    if (!pc || !candidate) return;
     try {
-      pc.close();
-    } catch {}
-    peersByViewerId.delete(viewerId);
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (e) {
+      console.warn("Error afegint ICE candidate", e);
+    }
+  });
+
+  castSocket.on("viewer-left", ({ viewerId }) => {
+    const pc = peersByViewerId.get(viewerId);
+    if (pc) {
+      try {
+        pc.close();
+      } catch {}
+      peersByViewerId.delete(viewerId);
+    }
+  });
+
+  castSocket.on("force-disconnect", () => {
+    stopCast(true);
+    setStatus(
+      "S'ha aturat la compartició: algú altre està emetent en aquesta sala"
+    );
+    showToast(
+      "Algú altre està emetent en aquesta sala. S'ha aturat la teva emissió."
+    );
+  });
+
+  castSocket.on("replace-required", async () => {
+    // Auto-acceptar substitució mantenint el tipus de compartició
+    const payload = { room: currentRoom, confirm: true };
+    const share = pendingShare || { kind: currentKind };
+    if (share && share.kind === "url") {
+      payload.kind = "url";
+      payload.url = share.url;
+      payload.interactive = !!share.interactive;
+    } else {
+      payload.kind = "webrtc";
+    }
+    castSocket.emit("confirm-replace", payload);
+    setStatus("Substituint l'emissor existent...");
+    showToast("Substituint emissor existent...");
+  });
+
+  castSocket.on("replace-declined", () => {
+    stopCast(true);
+    setStatus("Substitució rebutjada");
+    showToast("Substitució rebutjada");
+  });
+}
+
+// Intenta vincular ara i també quan auth/socket estiguin llestos
+bindCastSocketHandlersOnce();
+window.addEventListener("auth:ready", () => {
+  if (!window.__castHandlersBound) {
+    initCastSocket();
+    bindCastSocketHandlersOnce();
   }
 });
-
-castSocket.on("force-disconnect", () => {
-  stopCast(true);
-  setStatus(
-    "S'ha aturat la compartició: algú altre està emetent en aquesta sala"
-  );
-  showToast(
-    "Algú altre està emetent en aquesta sala. S'ha aturat la teva emissió."
-  );
-});
-
-castSocket.on("replace-required", async () => {
-  // Auto-acceptar substitució mantenint el tipus de compartició
-  const payload = { room: currentRoom, confirm: true };
-  const share = pendingShare || { kind: currentKind };
-  if (share && share.kind === "url") {
-    payload.kind = "url";
-    payload.url = share.url;
-    payload.interactive = !!share.interactive;
-  } else {
-    payload.kind = "webrtc";
+window.addEventListener("socket:ready", () => {
+  if (!window.__castHandlersBound) {
+    initCastSocket();
+    bindCastSocketHandlersOnce();
   }
-  castSocket.emit("confirm-replace", payload);
-  setStatus("Substituint l'emissor existent...");
-  showToast("Substituint emissor existent...");
 });
-
-castSocket.on("replace-declined", () => {
-  stopCast(true);
-  setStatus("Substitució rebutjada");
-  showToast("Substitució rebutjada");
-});
+setTimeout(() => {
+  if (!window.__castHandlersBound) {
+    initCastSocket();
+    bindCastSocketHandlersOnce();
+  }
+}, 300);
 
 // Gestió de tancar pàgina
 window.addEventListener("beforeunload", (e) => {

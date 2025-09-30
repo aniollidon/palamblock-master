@@ -17,6 +17,7 @@ let chromeTabsObjects = {};
 
 export function drawAlumnesActivity(data) {
   let alumnesList = document.getElementById("alumnesList");
+  if (!alumnesList) return; // Vista de navegadors no carregada; evita errors a Pantalles
 
   for (let grup in grupAlumnesList) {
     for (let alumne in grupAlumnesList[grup].alumnes) {
@@ -247,8 +248,15 @@ export function drawAlumnesActivity(data) {
           }
 
           for (const windowId in windowInfo) {
+            let browserWin = undefined;
+            const bw_id = alumne + "-" + browser + "-" + windowId;
+            // Si les pestanyes no han canviat PERO el DOM d'aquest window no existeix (perquè hem re-entrar a la vista),
+            // no saltem el dibuix: cal reconstruir l'estructura visual.
+            const bw_dom_exists = document.getElementById(
+              bw_id + "-browser-win"
+            );
             if (
-              storedAlumneInfo[alumne] &&
+              bw_dom_exists &&
               storedAlumneInfo[alumne] &&
               storedAlumneInfo[alumne][browser] &&
               storedAlumneInfo[alumne][browser][windowId] &&
@@ -259,9 +267,6 @@ export function drawAlumnesActivity(data) {
             ) {
               continue;
             }
-
-            let browserWin = undefined;
-            const bw_id = alumne + "-" + browser + "-" + windowId;
             if (!document.getElementById(bw_id + "-browser-win")) {
               browserWin = document.createElement("div");
               browserWin.setAttribute("class", "chrome-tabs");
@@ -377,6 +382,12 @@ export function drawAlumnesActivity(data) {
 }
 
 function drawBrowsersGrup(grup) {
+  // Desa el darrer grup seleccionat per recordar-lo en futures entrades
+  try {
+    localStorage.setItem("pbk:lastBrowsersGroup", grup);
+  } catch (_) {}
+  // Evita executar si no som a la vista de navegadors
+  if (!document.getElementById("alumnesList")) return;
   for (let g in grupAlumnesList) {
     for (let a in grupAlumnesList[g].alumnes) {
       visibilityAlumnes[a] = g === grup;
@@ -506,6 +517,10 @@ function drawBrowsersGrup(grup) {
 }
 
 export function preparaAlumnesGrups(data) {
+  // Si la vista de navegadors no està carregada, evita manipular el DOM
+  const alumnesListEl = document.getElementById("alumnesList");
+  const grupSelectorEl = document.getElementById("grupSelector");
+  if (!alumnesListEl || !grupSelectorEl) return;
   grupAlumnesList = data;
 
   // Prepara visibilitat
@@ -518,9 +533,13 @@ export function preparaAlumnesGrups(data) {
   // Llegeix el parametre grup de la query
   const urlParams = new URLSearchParams(window.location.search);
   const grupGET = urlParams.get("grup");
+  let grupStored = null;
+  try {
+    grupStored = localStorage.getItem("pbk:lastBrowsersGroup");
+  } catch (_) {}
 
   // Prepara el selector de grups
-  const grupSelector = document.getElementById("grupSelector");
+  const grupSelector = grupSelectorEl;
   grupSelector.innerHTML = "";
   const option = document.createElement("option");
   option.innerHTML = "Selecciona un grup";
@@ -528,16 +547,25 @@ export function preparaAlumnesGrups(data) {
   option.setAttribute("disabled", "disabled");
   grupSelector.appendChild(option);
 
+  let selectedGrup = null;
   for (let grup in grupAlumnesList) {
     const option = document.createElement("option");
     option.setAttribute("value", grup);
     option.innerHTML = grup;
     grupSelector.appendChild(option);
 
-    if (grupGET === grup) {
+    if (grupGET === grup || (!grupGET && grupStored === grup)) {
       option.setAttribute("selected", "selected");
-      drawBrowsersGrup(grupGET);
-      // Neteja la query
+      selectedGrup = grup;
+    }
+  }
+
+  // Si tenim un grup per seleccionar (de la URL o guardat), aplica'l i dibuixa
+  if (selectedGrup) {
+    grupSelector.value = selectedGrup;
+    drawBrowsersGrup(selectedGrup);
+    // Neteja la query si venia marcada
+    if (grupGET) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }
@@ -545,16 +573,7 @@ export function preparaAlumnesGrups(data) {
   grupSelector.onchange = (ev) => {
     drawBrowsersGrup(grupSelector.value);
   };
-
-  // Si no hi ha grup seleccionat encara, mantenim els botons deshabilitats (ja controlat) – cap acció extra.
-  try {
-    socket.emit("getInitialData");
-  } catch (e) {
-    console.warn(
-      "[Browsers] Error emetent getInitialData al preparaAlumnesGrups:",
-      e
-    );
-  }
+  // Nota: No tornar a demanar getInitialData aquí; això crearia un bucle amb 'grupAlumnesList'.
 }
 
 export function getGrup(alumneId) {

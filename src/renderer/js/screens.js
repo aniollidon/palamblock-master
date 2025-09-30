@@ -19,7 +19,7 @@ function compareMachines(m1, m2) {
 
 export function drawGridGrup_update(updatedData) {
   const grupSelector = document.getElementById("grupSelector");
-  const grup = grupSelector.value;
+  const grup = grupSelector ? grupSelector.value : null;
   if (!grup) return;
 
   for (let alumne in updatedData) {
@@ -313,7 +313,7 @@ function drawGridItem(alumne, maquina) {
   iframe.setAttribute("frameborder", "0");
   iframe.setAttribute("scrolling", "no");
 
-  iframe.style.backgroundImage = "url('../img/offline.jpg')";
+  iframe.style.backgroundImage = "url('images/offline.jpg')";
   iframe.style.backgroundPosition = "center";
   iframe.style.backgroundRepeat = "no-repeat";
   iframe.style.backgroundSize = "contain";
@@ -330,20 +330,15 @@ function drawGridItem(alumne, maquina) {
 }
 
 function drawGridGrup(grupName) {
-  // Botó de veure tots els navegadors
-  const globalGroupBrowsersView = document.getElementById(
-    "globalGroupBrowsersView"
-  );
-  globalGroupBrowsersView.addEventListener("click", () => {
-    window.location.href = "../browsers?grup=" + grupName;
-  });
-
   // Activa els botons de grup
-  document.getElementById("globalGroupPowerOffButton").disabled = false;
-  document.getElementById("globalGroupCastButton").disabled = false;
+  const offBtn = document.getElementById("globalGroupPowerOffButton");
+  const castBtn = document.getElementById("globalGroupCastButton");
+  if (offBtn) offBtn.disabled = false;
+  if (castBtn) castBtn.disabled = false;
 
   // Fes el grid
   const grid = document.getElementById("grid-container");
+  if (!grid) return; // Evita error si el DOM no està llest o la vista ha canviat
   grid.innerHTML = "";
   const grup = grupAlumnesList[grupName];
   for (let alumne in grup.alumnes) {
@@ -364,9 +359,15 @@ export function preparaSelectorGrups() {
   // Llegeix el parametre grup de la query
   const urlParams = new URLSearchParams(window.location.search);
   const grupGET = urlParams.get("grup");
+  // Llegeix el darrer grup seleccionat (persistència entre vistes)
+  let grupStored = null;
+  try {
+    grupStored = localStorage.getItem("pbk:lastBrowsersGroup");
+  } catch (_) {}
 
   // Prepara el selector de grups
   const grupSelector = document.getElementById("grupSelector");
+  if (!grupSelector) return; // encara no està el DOM
   grupSelector.innerHTML = "";
   const option = document.createElement("option");
   option.innerHTML = "Selecciona un grup";
@@ -374,26 +375,47 @@ export function preparaSelectorGrups() {
   option.setAttribute("disabled", "disabled");
   grupSelector.appendChild(option);
 
+  let selectedGrup = null;
   for (let grup in grupAlumnesList) {
     const option = document.createElement("option");
     option.setAttribute("value", grup);
     option.innerHTML = grup;
-    if (grupGET === grup) {
+    // Prioritza query; si no n'hi ha, usa el guardat
+    if ((grupGET && grupGET === grup) || (!grupGET && grupStored === grup)) {
       option.setAttribute("selected", "selected");
-      drawGridGrup(grupGET);
-      // Neteja la query
-      window.history.replaceState({}, document.title, window.location.pathname);
+      selectedGrup = grup;
     }
     grupSelector.appendChild(option);
   }
 
+  // Aplica selecció inicial si escau
+  if (selectedGrup) {
+    grupSelector.value = selectedGrup;
+    try {
+      localStorage.setItem("pbk:lastBrowsersGroup", selectedGrup);
+    } catch (_) {}
+    drawGridGrup(selectedGrup);
+    // Neteja la query si venia marcada
+    if (grupGET) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
   grupSelector.onchange = (ev) => {
     const grup = ev.target.value;
+    try {
+      localStorage.setItem("pbk:lastBrowsersGroup", grup || "");
+    } catch (_) {}
     if (!grup) {
-      document.getElementById("globalGroupPowerOffButton").disabled = true;
-      document.getElementById("globalGroupCastButton").disabled = true;
+      const offBtn = document.getElementById("globalGroupPowerOffButton");
+      const castBtn = document.getElementById("globalGroupCastButton");
+      if (offBtn) offBtn.disabled = true;
+      if (castBtn) castBtn.disabled = true;
     } else {
-      drawGridGrup(grup);
+      // Evita error si el contenidor no hi és encara
+      if (document.getElementById("grid-container")) {
+        drawGridGrup(grup);
+      }
     }
     // Actualitzar dropdown del cast sidebar quan canvia el grup
     if (window.updateCastStudentData) {

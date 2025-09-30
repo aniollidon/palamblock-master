@@ -103,6 +103,11 @@ class ViewManager {
 
       this.currentView = viewName;
       console.log(`✅ [VIEW] Vista ${viewName} carregada correctament`);
+      try {
+        window.dispatchEvent(
+          new CustomEvent("view:changed", { detail: { view: viewName } })
+        );
+      } catch (_) {}
     } catch (error) {
       console.error(`❌ [VIEW] Error carregant vista ${viewName}:`, error);
       this.showErrorView(error.message);
@@ -139,8 +144,10 @@ class ViewManager {
             "[VIEW] Import browsers_view.js OK",
             Object.keys(mod || {})
           );
-          if (mod && typeof mod.refreshBrowsersData === "function") {
-            // Si ja s'havia demanat abans, forcem un refresc de dades al re-entrar
+          // Lifecycle mount
+          if (mod && typeof mod.mountBrowsersView === "function") {
+            await mod.mountBrowsersView();
+          } else if (mod && typeof mod.refreshBrowsersData === "function") {
             mod.refreshBrowsersData("reenter");
           }
           // Enllaç del dropdown per canviar a pantalles
@@ -169,17 +176,44 @@ class ViewManager {
 
         // Guardem un placeholder com a instància amb destroy no-op
         if (!this.viewInstances.has("browsers")) {
-          this.viewInstances.set("browsers", { destroy: () => {} });
+          this.viewInstances.set("browsers", {
+            destroy: async () => {
+              try {
+                const mod = await import("./browsers_view.js");
+                mod.unmountBrowsersView?.();
+              } catch (_) {}
+            },
+          });
         }
         break;
 
       case "screens":
-        // Inicialitza el codi de pantalles
-        if (!window.screensViewInstance) {
-          window.screensViewInstance = new ScreensView();
+        // Inicialitza wiring paritari amb la web (grups, màquines, grid) i cast sidebar
+        try {
+          const mod = await import("./screens_view.js");
+          if (mod && typeof mod.initScreensWiring === "function") {
+            await mod.initScreensWiring();
+          }
+          // Carrega la lògica del cast un cop (evitem script inline a la vista)
+          try {
+            await import("./cast_sidebar.js");
+          } catch (e) {
+            console.warn("[VIEW] No s'ha pogut carregar cast_sidebar.js:", e);
+          }
+        } catch (e) {
+          console.warn("[VIEW] No s'ha pogut inicialitzar screens_view:", e);
         }
-        window.screensViewInstance.init();
-        this.viewInstances.set("screens", window.screensViewInstance);
+        // Guardem instància no-op amb destroy
+        if (!this.viewInstances.has("screens")) {
+          this.viewInstances.set("screens", {
+            destroy: async () => {
+              try {
+                const mod = await import("./screens_view.js");
+                mod.unmountScreensView?.();
+              } catch (_) {}
+            },
+          });
+        }
         break;
     }
   }

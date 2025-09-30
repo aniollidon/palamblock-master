@@ -143,10 +143,8 @@ a.active {
 }
 
 .scrollarea{
-    /* width */
-    width: 380px;
+    /* default scroll helper; specific sidebars will override sizing */
     overflow-y: auto;
-    height: 400px;
 }
 /* width */
 .scrollarea::-webkit-scrollbar {
@@ -295,6 +293,33 @@ a.active {
     margin-right: 380px;
 }
 
+/* Cast Sidebar (Screens view) */
+#castSidebarContainer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 380px;
+    z-index: 1020;
+    pointer-events: none; /* container itself doesn't block clicks */
+}
+
+#castSidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto; /* override any generic .sidebar left */
+    width: 380px;
+    min-width: 380px;
+    height: 100vh;
+    overflow-y: auto;
+    background: #fff;
+    border-left: 1px solid rgba(0,0,0,.1);
+    z-index: 1021; /* above container */
+    pointer-events: auto; /* interactive */
+}
+
 #historialSidebar {
     transform: translateX(100%);
     transition: transform 0.3s ease;
@@ -368,6 +393,45 @@ a.active {
     display: block !important;
 }
 
+/* --- Historial Sidebar tweaks (match web look) -------------------------- */
+#historialSidebar .sidebarContent {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0; /* allow children to shrink for scroll */
+}
+
+#historialSidebar .scrollarea {
+    width: 100%;
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* List items look akin to web version */
+#historialSidebar .list-group-item {
+    border: none;
+    border-bottom: 1px solid #e9ecef;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+#historialSidebar .list-group-item-dark {
+    background-color: #f8f9fa;
+}
+
+#historialSidebar .list-group-item .nomesunalinia {
+    font-weight: 500;
+}
+
+#historialSidebar .date-historial-heading {
+    background: #f8f9fa !important;
+}
+
+/* Ensure hidden/visible sections behave even if some classes differ */
+#historialSidebar .historial-content { display: none; }
+#historialSidebar .historial-content:not(.d-none) { display: block; }
+
 .round {
     border-radius: 10px !important;
 }
@@ -404,3 +468,81 @@ a.active {
 .alumne-buttons .btn:last-child {
     margin-right: 0;
 }
+
+.google-services{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 10px;
+    margin: 5px 10px 0;
+}
+
+label {
+    font-weight: 500;
+    color: rgb(104, 104, 104);
+}
+
+/* --- Web-admin compat (scoped) ----------------------------------------- */
+/* Objectiu: portar estils útils del web a modals i formularis sense afectar
+   la capçalera fosca ni la disposició d'Electron. SCOPE: només dins modals
+   principals utilitzats per Normes i Llista Blanca. */
+
+/* Form controls look & feel dins dels modals */
+#llistaBlancaModal .form-control,
+#bloquejaModalWeb .form-control,
+.modal-normes .form-control {
+    background-color: rgb(241, 243, 247);
+    border: none;
+    margin-bottom: 13px;
+}
+
+#llistaBlancaModal .form-control:focus,
+#bloquejaModalWeb .form-control:focus,
+.modal-normes .form-control:focus {
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075) inset, 0 0 7px rgba(0, 0, 0, 0.2);
+}
+
+/* Select native reset només dins modals per mantenir look consistent */
+#llistaBlancaModal select,
+#bloquejaModalWeb select,
+.modal-normes select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    text-indent: 1px;
+    text-overflow: '';
+}
+
+/* Filesa i contenidors per a la llista blanca */
+.weblist-item-container {
+    margin-bottom: 13px;
+}
+.weblist-item {
+    background-color: #f4f9ff !important;
+}
+
+/* Ajustos de botons/labels dins de modals */
+.llb-child-google-service label { /* més lleuger per a ítems secundaris */
+    font-weight: 400;
+    vertical-align: text-bottom;
+}
+
+/* Ajustos del mini-botó W (paraules senceres) */
+/* Variant alternativa més compacta (DESACTIVADA per defecte):
+.edit-wordonly-search{
+    margin-left: 5px;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: smaller;
+    height: 13px;
+    margin-right: 5px;
+    padding: 0 5px;
+    line-height: 2px;
+    background: #bdbdbd;
+    color: white;
+}
+.edit-wordonly-search.active{ background:#5b5b5b; }
+*/
+
+/* Utilitats diverses */
+.nobottom { margin-bottom: 0 !important; }
+.word-filtering { background: #5b5b5b; }

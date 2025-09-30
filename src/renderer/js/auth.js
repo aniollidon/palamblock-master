@@ -115,7 +115,7 @@ class AuthManager {
 
     this.isAuthenticated = true;
     this.authToken = this.currentCredentials.token;
-    this.hideLogin();
+    // No amaguis el login fins que la connexió estigui en marxa
     try {
       window.dispatchEvent(
         new CustomEvent("auth:ready", {
@@ -125,16 +125,19 @@ class AuthManager {
     } catch (e) {
       console.warn("[AUTH] No s'ha pogut emetre auth:ready", e);
     }
-    // Si ja estem autenticats per token reutilitzat, mostra la vista d'inici
+    // Arrenca connexió socket immediatament un cop auth ready
+    setTimeout(() => {
+      try {
+        window.updateSocketCredentials?.(
+          this.serverUrl,
+          this.currentCredentials
+        );
+      } catch (_) {}
+    }, 10);
+    // Mostra Home ara que auth s'ha completat; el login es tancarà amb performLogin
     if (window.viewManager) {
       window.viewManager.loadView("home");
     }
-    // Defer socket connection (wait a tick so window.updateSocketCredentials exists)
-    setTimeout(() => {
-      if (window.updateSocketCredentials) {
-        window.updateSocketCredentials(this.serverUrl, this.currentCredentials);
-      }
-    }, 50);
     return true;
 
     return false;
@@ -384,6 +387,14 @@ class AuthManager {
         keyboard: false,
       }
     );
+    // Prefill amb l'últim servidor/usuari si disponible
+    try {
+      const serverUrlEl = document.getElementById("serverUrl");
+      const usernameEl = document.getElementById("username");
+      if (this.serverUrl && serverUrlEl) serverUrlEl.value = this.serverUrl;
+      if (this.currentCredentials?.username && usernameEl)
+        usernameEl.value = this.currentCredentials.username;
+    } catch (_) {}
     loginModal.show();
   }
 
@@ -517,6 +528,27 @@ window.AuthManager = AuthManager;
 
 // Initialize authentication manager
 let authManager;
+(function initAuthManager() {
+  const start = () => {
+    if (window.authManager) return; // already initialized
+    try {
+      authManager = new AuthManager();
+      window.authManager = authManager;
+    } catch (e) {
+      console.error("[AUTH] Error inicialitzant AuthManager:", e);
+    }
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, { once: true });
+  } else {
+    // DOM ja llest
+    start();
+  }
+  // Fallback extra per si hi ha problemes d'ordre de càrrega
+  setTimeout(() => {
+    if (!window.authManager) start();
+  }, 150);
+})();
 
 document.addEventListener("DOMContentLoaded", () => {
   authManager = new AuthManager();

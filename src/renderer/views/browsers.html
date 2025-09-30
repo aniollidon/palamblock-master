@@ -3,7 +3,7 @@
     <div class="link-dark text-decoration-none border-bottom pt-3 sidebarContent">
         <div class="d-flex align-items-center flex-shrink-0 px-3">
             <span class="fs-5 fw-semibold" id="historialSidebarTitle">Historial ALUMNE</span>
-            <button aria-label="Close" class="btn-close p-3 historial-close" data-bs-dismiss="modal" type="button"
+            <button aria-label="Close" class="btn-close p-3 historial-close" type="button"
                 id="historialSidebarClose"></button>
         </div>
         <div>
@@ -71,6 +71,148 @@
 
             <div class="list-group list-group-flush border-bottom scrollarea historial-content"
                 id="historialSearchResults"></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal Normes -->
+<div aria-hidden="true" aria-labelledby="normesModalLabel" class="modal fade text-left" id="normesModal" role="dialog"
+    tabindex="-1">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pbk_modal_normes_title">Normes per ALUMNE</h5>
+                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+            </div>
+            <div id="pbk_modal_normes"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Tanca</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Bloqueja Web -->
+<div aria-hidden="true" aria-labelledby="bloquejaModalWebLabel" class="modal fade text-left modal-normes"
+    id="bloquejaModalWeb" role="dialog" tabindex="-1">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bloquejaModalWebLabel">Crear norma</h5>
+                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+            </div>
+            <!-- nav options -->
+            <ul class="nav nav-pills mb-3 shadow-sm" role="tablist">
+                <li class="nav-item">
+                    <a aria-controls="pills-blocalumnweb" aria-selected="true" class="nav-link active"
+                        data-bs-toggle="pill" href="#pills-blocalumnweb" id="pills-blocwebalumn-tab" role="tab">Bloqueja
+                        alumne
+                        ALUMNE</a>
+                </li>
+                <li class="nav-item">
+                    <a aria-controls="pills-blocgrupweb" aria-selected="false" class="nav-link" data-bs-toggle="pill"
+                        href="#pills-blocgrupweb" id="pills-blocwebgrup-tab" role="tab">Bloqueja grup GRUP</a>
+                </li>
+            </ul>
+            <!-- content -->
+            <div class="tab-content">
+                <div aria-labelledby="pills-blocwebalumn-tab" class="tab-pane marge fade show active"
+                    id="pills-blocalumnweb" role="tabpanel">
+                    Crea una nova norma de bloqueig per l'alumne. Aquesta norma s'aplicarà a tots els navegadors de
+                    l'alumne.
+                </div>
+                <div aria-labelledby="pills-blocwebgrup-tab" class="tab-pane marge fade" id="pills-blocgrupweb"
+                    role="tabpanel">
+                    Crea una nova norma de bloqueig per el grup. Aquesta norma s'aplicarà a tots els navegadors dels
+                    alumnes del grup.
+                </div>
+            </div>
+
+            <div class="form marge">
+                <div class="form-group" style="margin-bottom: 10px">
+                    <label for="pbk_modalblockweb_severity">Tipus de bloqueig</label>
+                    <select class="form-control round" id="pbk_modalblockweb_severity">
+                        <option value="block">Bloca</option>
+                        <option value="warn">Només avís</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div style="display: flex;justify-content: space-between;">
+                        <label for="pbk_modalblockweb_host">Host</label>
+                        <div class="form-check form-switch">
+                            <input checked class="form-check-input" id="pbk_modalblockweb_host_switch" type="checkbox">
+                        </div>
+                    </div>
+                    <input class="form-control" id="pbk_modalblockweb_host" placeholder="exemple.cat" />
+
+                    <div style="display: flex;justify-content: space-between;">
+                        <label for="pbk_modalblockweb_pathname">Path</label>
+                        <div class="form-check form-switch">
+                            <input checked class="form-check-input" id="pbk_modalblockweb_pathname_switch"
+                                type="checkbox">
+                        </div>
+                    </div>
+
+                    <input class="form-control" id="pbk_modalblockweb_pathname" placeholder="/path/" />
+
+                    <div style="display: flex;justify-content: space-between;">
+                        <label for="pbk_modalblockweb_search">Cerca</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" id="pbk_modalblockweb_search_switch" type="checkbox">
+                        </div>
+                    </div>
+
+                    <input class="form-control" id="pbk_modalblockweb_search" placeholder="" />
+
+                    <div style="display: flex;justify-content: space-between;">
+                        <label for="pbk_modalblockweb_title">Titol</label>
+                        <div class="grup-edit-buttons">
+                            <button class="edit-wordonly-search" id="pbk_modalblockweb_title_optionW"
+                                title="Filtra paraules senceres"> W </button>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" id="pbk_modalblockweb_title_switch" type="checkbox">
+                            </div>
+                        </div>
+                    </div>
+
+                    <input class="form-control" id="pbk_modalblockweb_title" placeholder="" />
+                    <p></p>
+
+                    <label>Durada</label>
+                    <div>
+                        <div>
+                            <select id="pbk_modalblockweb-durada" class="form-control round">
+                            </select>
+                        </div>
+                    </div>
+                    <p></p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Tanca</button>
+                <button class="btn btn-primary" id="pbk_modalblockweb_creanorma" type="button">Crea norma</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Popup Menu -->
+<div class="menu">
+    <ul class="menu-options">
+    </ul>
+</div>
+
+<!-- Modal debug (iframe a browser-test) -->
+<div aria-hidden="true" aria-labelledby="debugModalLabel" class="modal fade text-left modal-xl" id="debugModal"
+    role="dialog" tabindex="-1" style="min-height: 500px; min-width: 700px;">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content" style="height: 465px; width: 700px;">
+            <div class="modal-header">
+                <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+            </div>
+            <iframe id="debugIframe" src="browser-test.html" style="width: 100%; height: 100%; border: none;"></iframe>
         </div>
     </div>
 </div>

@@ -61,7 +61,11 @@
 
 .nav-pills .nav-link.active {
   background-color: var(--pb-primary);
-  color: white;
+}
+
+img.historial-favicon {
+    height: 15px;
+    margin-right: 5px;
 }
 
 /* Alumne item */
