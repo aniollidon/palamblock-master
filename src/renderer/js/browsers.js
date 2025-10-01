@@ -9,6 +9,7 @@ import {
 import { toogleSideBar } from "./sidebar.js";
 import { compareEqualTabs } from "./utils.js";
 import { socket } from "./socket.js";
+import { isSuperUser } from "./utils.js";
 
 const storedAlumneInfo = {};
 let grupAlumnesList = {};
@@ -171,7 +172,7 @@ export function drawAlumnesActivity(data) {
         alumneDivButtons.appendChild(document.createTextNode(" "));
 
         // Delete button
-        if (alumne === "prova" || window.location.search.includes("super")) {
+        if (alumne === "prova" || isSuperUser()) {
           const deleteButton = document.createElement("button");
           deleteButton.setAttribute("class", "btn btn-danger");
           deleteButton.setAttribute("type", "button");

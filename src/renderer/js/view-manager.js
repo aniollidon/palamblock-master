@@ -127,11 +127,25 @@ class ViewManager {
             link.dataset._bound = "1";
           }
           this.updateHomeUserInfo();
+          // Mount home view interactions (e.g., 7-click super activation)
+          try {
+            const mod = await import("./home_view.js");
+            mod.mountHomeView?.();
+          } catch (e) {
+            console.warn("[HOME] No s'ha pogut muntar home_view:", e);
+          }
         } catch (e) {
           console.warn("[HOME] Error inicialitzant elements home:", e);
         }
         if (!this.viewInstances.has("home"))
-          this.viewInstances.set("home", { destroy: () => {} });
+          this.viewInstances.set("home", {
+            destroy: async () => {
+              try {
+                const mod = await import("./home_view.js");
+                mod.unmountHomeView?.();
+              } catch (_) {}
+            },
+          });
         break;
       case "browsers":
         // La vista de navegadors és un mòdul procedural (no classe)
