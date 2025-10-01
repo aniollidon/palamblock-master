@@ -74,12 +74,53 @@ export function creaWebMenuJSON(
   // Opcions del menu contextual
   const obreUrl = (info) => {
     const url =
-      info.webPage.protocol +
+      (info?.webPage?.protocol || "https:") +
       "//" +
-      info.webPage.host +
-      info.webPage.pathname +
-      info.webPage.search;
-    window.open(url, "_blank").focus();
+      (info?.webPage?.host || "") +
+      (info?.webPage?.pathname || "") +
+      (info?.webPage?.search || "");
+
+    console.log(info);
+    console.log("[DIALOGS] Obre URL:", url);
+
+    // Si el protocol no és https o http, mostrem un error a l'usuari
+    if (
+      (!url.startsWith("https:") && !url.startsWith("http:")) ||
+      url === "https://" ||
+      url === "http://"
+    ) {
+      alert(
+        "No es pot obrir l'enllaç: " +
+          (info?.webPage?.title || "Sense títol") +
+          " (" +
+          url +
+          ")"
+      );
+      console.error("[DIALOGS] Protocol no suportat:", url);
+      return;
+    }
+
+    const openExternal = window.electronAPI?.openExternal;
+
+    if (typeof openExternal === "function") {
+      try {
+        const safe = encodeURI(url);
+        const res = openExternal(safe);
+        if (res && typeof res.then === "function") {
+          res.catch((err) => {
+            console.error(
+              "[DIALOGS] No s'ha pogut obrir externament:",
+              safe,
+              err
+            );
+          });
+        }
+      } catch (err) {
+        console.error("[DIALOGS] No s'ha pogut obrir externament:", url, err);
+      }
+    } else {
+      console.error("[DIALOGS] API openExternal no disponible. URL:", url);
+    }
   };
   const onBloqueja = (info) => {
     obreDialogBloquejaWeb(info.webPage, alumne, getGrup(alumne), "blocalumne");
@@ -106,7 +147,7 @@ export function creaWebMenuJSON(
     moveHistorialSidebarToSearch("host:" + info.webPage.host);
   };
 
-  let menu = [{ text: "Obre aquí", do: obreUrl }];
+  let menu = [{ text: "Obre web", do: obreUrl }];
 
   if (browser) {
     menu.push({
@@ -604,8 +645,40 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   container.innerHTML = "";
   modalTitle.innerHTML = `Normes web per ${whoid}`;
 
+  // Header with search input
+  const searchWrap = document.createElement("div");
+  searchWrap.setAttribute("class", "mb-2 p-4");
+  const searchRow = document.createElement("div");
+  searchRow.setAttribute("class", "input-group input-group-sm");
+  const searchInput = document.createElement("input");
+  searchInput.setAttribute("type", "search");
+  searchInput.setAttribute("class", "form-control");
+  searchInput.setAttribute(
+    "placeholder",
+    "Cerca normes (host, títol, path, estat…)"
+  );
+  searchInput.setAttribute("aria-label", "Cerca normes");
+  searchInput.setAttribute("id", "pbk_normes_search");
+  const searchClearBtn = document.createElement("button");
+  searchClearBtn.setAttribute("class", "btn btn-outline-secondary");
+  searchClearBtn.setAttribute("type", "button");
+  searchClearBtn.textContent = "Neteja";
+  searchRow.appendChild(searchInput);
+  searchRow.appendChild(searchClearBtn);
+  searchWrap.appendChild(searchRow);
+  const searchCounter = document.createElement("div");
+  searchCounter.setAttribute("class", "small text-muted mt-1");
+  searchCounter.setAttribute("id", "pbk_normes_search_counter");
+  searchWrap.appendChild(searchCounter);
+  container.appendChild(searchWrap);
+
   list.setAttribute("class", "list-group");
   container.appendChild(list);
+  const noResults = document.createElement("div");
+  noResults.setAttribute("class", "alert alert-warning mt-2 d-none");
+  noResults.setAttribute("id", "pbk_normes_noresults");
+  noResults.textContent = "Cap resultat per a la cerca actual.";
+  container.appendChild(noResults);
 
   // Defensive: si encara no tenim dades de normes per aquest alumne/grup
   if (
@@ -846,6 +919,30 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
       itemText.appendChild(divTime);
     }
     listItem.appendChild(itemText);
+
+    // Prepare searchable content for filtering
+    const statusBits = [];
+    if (normesWebInfo[whos][whoid][norma].alive) statusBits.push("activa");
+    else statusBits.push("desactivada");
+    if (
+      normesWebInfo[whos][whoid][norma].alive &&
+      !normaTempsActiva(normesWebInfo[whos][whoid][norma].enabled_on)
+    )
+      statusBits.push("inactiva");
+    const searchableText = (
+      (itemTitle.innerText || "") +
+      "\n" +
+      (itemText.innerText || "") +
+      "\n" +
+      statusBits.join(" ") +
+      "\n" +
+      (norma || "")
+    )
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    listItem.setAttribute("data-search", searchableText);
+
     list.appendChild(listItem);
   }
   if (!hadAny) {
@@ -854,6 +951,34 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     emptyState.innerHTML = "No s'ha trobat cap norma activa.";
     container.appendChild(emptyState);
   }
+  // Wire up filtering (even if there are no items, UI is harmless)
+  const applyFilter = () => {
+    const q = (searchInput.value || "").toLowerCase().trim();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const items = list.querySelectorAll(".list-group-item");
+    let visible = 0;
+    items.forEach((el) => {
+      const hay = el.getAttribute("data-search") || "";
+      const match = tokens.every((t) => hay.includes(t));
+      el.style.display = match ? "" : "none";
+      if (match) visible++;
+    });
+    const total = items.length;
+    noResults.classList.toggle("d-none", visible !== 0 || total === 0);
+    searchCounter.textContent = total
+      ? `${visible}/${total} coincidències`
+      : "0 normes";
+  };
+
+  searchInput.addEventListener("input", applyFilter);
+  searchClearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    applyFilter();
+    searchInput.focus();
+  });
+
+  // Initial filter update
+  applyFilter();
   normesModal.show();
 }
 

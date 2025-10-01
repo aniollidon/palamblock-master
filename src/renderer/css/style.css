@@ -1,484 +1,327 @@
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-    font-size: 12px;
-    height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 12px;
+  height: 100%;
 }
 
-html{
-    height: 100%;
+html {
+  height: 100%;
 }
 
-.browsers{
-    margin: 10px 0 10px 10px
+.browsers {
+  margin: 10px 0 10px 10px;
 }
 .browser-icon {
-    width: 70px;
+  width: 70px;
 }
 
-.browser-version{
-    position: absolute;
-    left: 19px;
-    top: 27px;
-    color: #ffffff;
-    font-weight: 800;
-    background: black;
-    border-radius: 16px;
-    padding: 2px 9px;
+.browser-version {
+  position: absolute;
+  left: 19px;
+  top: 27px;
+  color: #ffffff;
+  font-weight: 800;
+  background: black;
+  border-radius: 16px;
+  padding: 2px 9px;
 }
 
-.bootbox-body{
-    font-size: 14px;
+.bootbox-body {
+  font-size: 14px;
 }
-.modal-message{
-    font-size: medium;
-    padding: 0 10px;
-    text-align: justify;
-}
-
-.historial-close{
-    position: absolute;
-    right: 0;
+.modal-message {
+  font-size: medium;
+  padding: 0 10px;
+  text-align: justify;
 }
 
-.informacions{
-    margin: 10px 0 0 0;
+.informacions {
+  margin: 10px 0 0 0;
 }
+
+.eye-button {
+  display: block;
+  color: #666;
+}
+
+.warning-right {
+  position: absolute;
+  right: 0;
+  top: 5px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+}
+
+.warning-tip-icons {
+  background: white;
+  border-radius: 13px;
+  padding: 3px;
+  filter: grayscale(1);
+  top: -3px;
+  position: relative;
+}
+
 .browser-info {
-    position: absolute;
-    transform: translateX(-59px) translateY(-17px);
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    flex-direction: row;
-    opacity: 50%;
+  position: absolute;
+  transform: translateX(-59px) translateY(-17px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-direction: row;
+  opacity: 50%;
 }
 
 .chrome-tabs {
-    padding-left: 50px;
+  padding-left: 50px;
 }
 
 .browser-separator {
-    width: 1px;
-    height: 100%;
-    background: #e8eaed;
+  width: 1px;
+  height: 100%;
+  background: #e8eaed;
 }
 
 .chrome-tab-blocked {
-    text-decoration: line-through;
+  text-decoration: line-through;
 }
 
-.grup-buttons{
-    min-width: fit-content;
-    margin-left: 10px;
+.grup-buttons {
+  min-width: fit-content;
+  margin-left: 10px;
 }
 
-
-.grup-opcions{
-    display: flex;
+.grup-opcions {
+  display: flex;
 }
 /*******/
 /* nav */
 .card {
-    max-width: 25rem;
-    padding: 0;
-    border: none;
-    border-radius: 0.5rem;
+  max-width: 25rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
 }
 
 a.active {
-    border-bottom: 2px solid #55c57a !important;
+  border-bottom: 2px solid #55c57a !important;
 }
 
 .nav-link {
-    color: rgb(110, 110, 110);
-    font-weight: 500;
+  color: rgb(110, 110, 110);
+  font-weight: 500;
 }
 .nav-link:hover {
-    color: #55c57a;
+  color: #55c57a;
 }
 
 .nav-pills .nav-link.active {
-    color: #55c57a;
-    background-color: transparent;
-    border-bottom: 2px solid #55c57a;
+  color: black;
+  background-color: white;
+  border-radius: 0.5rem 0.5rem 0 0;
+  font-weight: 600;
 }
 
 .nav-tabs .nav-link {
-    border: none;
+  border: none;
 }
 
 .nav-tabs .nav-link.active {
-    background-color: transparent;
-    border-bottom: 2px solid #55c57a;
-    font-weight: 600;
+  background-color: transparent;
+  border-bottom: 2px solid #55c57a;
+  font-weight: 600;
 }
 
 .nav-tabs {
-    border-bottom: 1px solid #e7e7e7;
+  border-bottom: 1px solid #e7e7e7;
 }
 
 .text-small {
-    font-size: 0.875rem;
+  font-size: 0.875rem;
 }
 
-.profile-header-tab .nav-item {
-    color: #55c57a;
-}
-
-/* in style sheet */
-.profile-header-tab.nav-tabs .nav-link {
-    color: #55c57a;
-}
-
-/*******/
-/* sidebar */
-.sidebar{
-    min-width: 380px !important;
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    border-left: 1px solid rgba(0, 0, 0, .1);
-}
-
-.scrollarea{
-    /* default scroll helper; specific sidebars will override sizing */
-    overflow-y: auto;
-}
-/* width */
-.scrollarea::-webkit-scrollbar {
-    width: 7px;
-}
-
-/* Track */
-.scrollarea::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-/* Handle */
-.scrollarea::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 6px;
-}
-
-/* Handle on hover */
-.scrollarea::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-.sidebarContent{
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
+/* moved to sidebar.css: .historial-close, .scrollarea, .sidebarContent and scrollbar styles */
 
 /**************/
 
-.grup-edit-buttons{
-    display: flex;
+.grup-edit-buttons {
+  display: flex;
 }
-.edit-wordonly-search{
-    width: 30px;
-    height: 30px;
-    background: #6c6c6c;
-    border-radius: 5px;
-    margin: 2px 5px 0 0;
-    border: none;
-    color: white;
-    font-weight: bold;
-    font-size: 12px;
+.edit-wordonly-search {
+  width: 30px;
+  height: 30px;
+  background: #6c6c6c;
+  border-radius: 5px;
+  margin: 2px 5px 0 0;
+  border: none;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
 }
 
-.edit-wordonly-search.active{
-    background: #ffb600 !important;
-    color: black;
+.edit-wordonly-search.active {
+  background: #ffb600 !important;
+  color: black;
 }
 
 .alumne-container {
-    margin: 10px;
-    padding: 0;
-    border-bottom: 1px solid #ccc;
+  margin: 10px;
+  padding: 0;
+  border-bottom: 1px solid #ccc;
 }
 
 .alumne-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    margin: 20px 0 10px 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0 10px 0;
 }
 
-.alumne-buttons{
-    min-width: fit-content;
+.alumne-buttons {
+  min-width: fit-content;
 }
 
 .normes-list {
-    margin: 10px;
+  margin: 10px;
 }
 
 .norma {
-    padding: 5px 10px;
-    margin: 5px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  padding: 5px 10px;
+  margin: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .norma-info {
-    flex-grow: 1;
+  flex-grow: 1;
 }
 
 .norma-actions {
-    margin-left: 10px;
+  margin-left: 10px;
 }
 
 .browsers-list {
-    min-height: 80px;
-    margin-left: 10px;
+  min-height: 80px;
+  margin-left: 10px;
 }
 
 .browser-container {
-    position: relative;
-    min-height: 80px;
-    background-color: #fff;
+  position: relative;
+  min-height: 80px;
+  background-color: #fff;
 }
 
 /* TAB CONTENT CSS PER HOSTJAT AL MODAL */
-.tab-content-height{
-    min-height: 300px;
-    max-height: 300px;
-    overflow-y: auto;
+.tab-content-height {
+  min-height: 300px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
-.modal-normes{
-    min-width: 700px;
+.modal-normes {
+  min-width: 700px;
 }
 
-.marge{
-    margin: 0 20px;
+.marge {
+  margin: 0 20px;
 }
 
 .row-input {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .row-input .form-control {
-    flex: 1;
+  flex: 1;
 }
 
 .norma-temps {
-    background: #ddd;
-    padding: 5px 10px;
-    border-radius: 10px;
-    font-size: 10px;
-    color: #555;
+  background: #ddd;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 10px;
+  color: #555;
 }
 
 .norma-temps.expired {
-    background: #f5c6cb;
-    color: #721c24;
+  background: #f5c6cb;
+  color: #721c24;
 }
 
-.main-content{
-    margin-right: 0;
-    transition: margin-right 0.3s ease;
+/* main-content sidebar-open spacing kept here as global layout utility */
+.main-content {
+  margin-right: 0;
+  transition: margin-right 0.3s ease;
 }
-
 .main-content.sidebar-open {
-    margin-right: 380px;
+  margin-right: 380px;
 }
 
-/* Cast Sidebar (Screens view) */
-#castSidebarContainer {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 380px;
-    z-index: 1020;
-    pointer-events: none; /* container itself doesn't block clicks */
+.main {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  flex-direction: row-reverse;
+  height: 100%;
+  max-height: 100vh;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
-
-#castSidebar {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: auto; /* override any generic .sidebar left */
-    width: 380px;
-    min-width: 380px;
-    height: 100vh;
-    overflow-y: auto;
-    background: #fff;
-    border-left: 1px solid rgba(0,0,0,.1);
-    z-index: 1021; /* above container */
-    pointer-events: auto; /* interactive */
-}
-
-#historialSidebar {
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-}
-
-#historialSidebar.show {
-    transform: translateX(0);
-}
-
-.historial-entry {
-    padding: 8px 15px;
-    border-bottom: 1px solid #e9ecef;
-    cursor: pointer;
-}
-
-.historial-entry:hover {
-    background-color: #f8f9fa;
-}
-
-.historial-time {
-    font-size: 0.85em;
-    color: #6c757d;
-    margin-bottom: 2px;
-}
-
-.historial-url {
-    font-weight: 500;
-    color: #495057;
-    word-break: break-all;
-}
-
-.historial-title {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-top: 2px;
-}
-
-.stats-item {
-    padding: 15px;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.stats-browser {
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 5px;
-}
-
-.stats-time {
-    font-size: 0.9em;
-    color: #6c757d;
-}
-
-.sorted-host {
-    padding: 10px 15px;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.sorted-host-name {
-    font-weight: 500;
-    color: #495057;
-}
-
-.sorted-host-count {
-    font-size: 0.85em;
-    color: #6c757d;
-    margin-top: 3px;
-}
-
-.historial-content.active {
-    display: block !important;
-}
-
-/* --- Historial Sidebar tweaks (match web look) -------------------------- */
-#historialSidebar .sidebarContent {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0; /* allow children to shrink for scroll */
-}
-
-#historialSidebar .scrollarea {
-    width: 100%;
-    height: auto;
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-/* List items look akin to web version */
-#historialSidebar .list-group-item {
-    border: none;
-    border-bottom: 1px solid #e9ecef;
-    padding-top: 6px;
-    padding-bottom: 6px;
-}
-
-#historialSidebar .list-group-item-dark {
-    background-color: #f8f9fa;
-}
-
-#historialSidebar .list-group-item .nomesunalinia {
-    font-weight: 500;
-}
-
-#historialSidebar .date-historial-heading {
-    background: #f8f9fa !important;
-}
-
-/* Ensure hidden/visible sections behave even if some classes differ */
-#historialSidebar .historial-content { display: none; }
-#historialSidebar .historial-content:not(.d-none) { display: block; }
 
 .round {
-    border-radius: 10px !important;
+  border-radius: 10px !important;
 }
 
 .d-none {
-    display: none !important;
+  display: none !important;
 }
 
 .fade {
-    transition: opacity 0.15s linear;
+  transition: opacity 0.15s linear;
 }
 
 .fade:not(.show) {
-    opacity: 0;
+  opacity: 0;
 }
 
 .nav-tabs .nav-item.show .nav-link,
 .nav-tabs .nav-link.active {
-    color: #55c57a;
-    background-color: transparent;
-    border-color: transparent transparent #55c57a transparent;
-    border-width: 0 0 2px 0;
-    font-weight: 600;
+  color: #55c57a;
+  background-color: transparent;
+  border-color: transparent transparent #55c57a transparent;
+  border-width: 0 0 2px 0;
+  font-weight: 600;
 }
 
 .btn-group > .btn:not(:first-child) {
-    margin-left: 5px;
+  margin-left: 5px;
 }
 
 .alumne-buttons .btn {
-    font-size: smaller;
+  font-size: smaller;
 }
 
 .alumne-buttons .btn:last-child {
-    margin-right: 0;
+  margin-right: 0;
 }
 
-.google-services{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 10px;
-    margin: 5px 10px 0;
+.google-services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  margin: 5px 10px 0;
 }
 
 label {
-    font-weight: 500;
-    color: rgb(104, 104, 104);
+  font-weight: 500;
+  color: rgb(104, 104, 104);
 }
 
 /* --- Web-admin compat (scoped) ----------------------------------------- */
@@ -490,40 +333,41 @@ label {
 #llistaBlancaModal .form-control,
 #bloquejaModalWeb .form-control,
 .modal-normes .form-control {
-    background-color: rgb(241, 243, 247);
-    border: none;
-    margin-bottom: 13px;
+  background-color: rgb(241, 243, 247);
+  border: none;
+  margin-bottom: 13px;
 }
 
 #llistaBlancaModal .form-control:focus,
 #bloquejaModalWeb .form-control:focus,
 .modal-normes .form-control:focus {
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075) inset, 0 0 7px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.075) inset, 0 0 7px rgba(0, 0, 0, 0.2);
 }
 
 /* Select native reset només dins modals per mantenir look consistent */
 #llistaBlancaModal select,
 #bloquejaModalWeb select,
 .modal-normes select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    text-indent: 1px;
-    text-overflow: '';
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-indent: 1px;
+  text-overflow: "";
 }
 
 /* Filesa i contenidors per a la llista blanca */
 .weblist-item-container {
-    margin-bottom: 13px;
+  margin-bottom: 13px;
 }
 .weblist-item {
-    background-color: #f4f9ff !important;
+  background-color: #f4f9ff !important;
 }
 
 /* Ajustos de botons/labels dins de modals */
-.llb-child-google-service label { /* més lleuger per a ítems secundaris */
-    font-weight: 400;
-    vertical-align: text-bottom;
+.llb-child-google-service label {
+  /* més lleuger per a ítems secundaris */
+  font-weight: 400;
+  vertical-align: text-bottom;
 }
 
 /* Ajustos del mini-botó W (paraules senceres) */
@@ -544,5 +388,9 @@ label {
 */
 
 /* Utilitats diverses */
-.nobottom { margin-bottom: 0 !important; }
-.word-filtering { background: #5b5b5b; }
+.nobottom {
+  margin-bottom: 0 !important;
+}
+.word-filtering {
+  background: #5b5b5b;
+}

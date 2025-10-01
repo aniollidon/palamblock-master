@@ -25,6 +25,9 @@ function emitWhenReady(eventName, payload) {
 
 export function toogleSideBar(alumne, tipus = "web") {
   const historialSidebar = document.getElementById("historialSidebar");
+  const historialSidebarContainer = document.getElementById(
+    "historialSidebarContainer"
+  );
   const historialSidebarClose = document.getElementById(
     "historialSidebarClose"
   );
@@ -34,6 +37,12 @@ export function toogleSideBar(alumne, tipus = "web") {
     historialSidebar.style.setProperty("display", "none", "important");
     // Treu la classe que el fa visible (animació slide-in)
     historialSidebar.classList.remove("show");
+    if (historialSidebarContainer)
+      historialSidebarContainer.style.setProperty(
+        "display",
+        "none",
+        "important"
+      );
     if (mainContent) mainContent.classList.remove("sidebar-open");
     // Refresca els chrome tabs
     if (chromeTabsObjects[alumne])
@@ -73,6 +82,12 @@ export function toogleSideBar(alumne, tipus = "web") {
       tipus === "web" ? "web" : "d'Apps"
     } de l'alumne ${alumne}`; // DEPRECATED APPS
     historialSideBarContent.innerHTML = "";
+    if (historialSidebarContainer)
+      historialSidebarContainer.style.setProperty(
+        "display",
+        "block",
+        "important"
+      );
     historialSidebar.style.setProperty("display", "block", "important");
     // Afegeix la classe per mostrar-lo (coincidint amb CSS #historialSidebar.show)
     historialSidebar.classList.add("show");

@@ -1,4 +1,11 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  ipcMain,
+  dialog,
+  shell,
+} = require("electron");
 const path = require("path");
 
 let mainWindow;
@@ -202,4 +209,16 @@ ipcMain.handle("log-error", (event, message, stack) => {
     console.error("Stack trace:", stack);
   }
   return true;
+});
+
+// Open in default browser
+ipcMain.handle("open-external", async (event, url) => {
+  try {
+    if (typeof url !== "string" || url.length === 0) return false;
+    await shell.openExternal(url);
+    return true;
+  } catch (e) {
+    console.error("open-external failed:", e);
+    return false;
+  }
 });

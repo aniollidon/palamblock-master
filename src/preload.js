@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getConfig: () => ipcRenderer.invoke("get-config"),
   setConfig: (config) => ipcRenderer.invoke("set-config", config),
   logError: (message, stack) => ipcRenderer.invoke("log-error", message, stack),
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
 
   // APIs per a la comunicació amb el servidor PalamSRV
   onServerMessage: (callback) => ipcRenderer.on("server-message", callback),
