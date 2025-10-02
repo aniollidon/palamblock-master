@@ -64,7 +64,7 @@ jobs:
           name: palammaster-windows
           path: |
             dist/*.exe
-            dist/*.yml
+            dist/latest.yml
 
       - name: Upload artifacts (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -74,7 +74,7 @@ jobs:
           path: |
             dist/*.AppImage
             dist/*.deb
-            dist/*.yml
+            dist/latest-linux.yml
 
       - name: Upload artifacts (macOS)
         if: matrix.os == 'macos-latest'
@@ -84,7 +84,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
+            dist/latest-mac.yml
 
   release:
     needs: build
