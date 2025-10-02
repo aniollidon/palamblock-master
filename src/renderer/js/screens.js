@@ -272,7 +272,7 @@ function drawGridItem(alumne, maquina) {
     if (window.openCastSidebarForStudent) {
       window.openCastSidebarForStudent(alumne);
     } else {
-      alert("No s'ha carregat la funcionalitat d'emissió");
+      showErrorToast("No s'ha carregat la funcionalitat d'emissió");
     }
   };
   dropdownItem5.appendChild(buttonCastStudent);

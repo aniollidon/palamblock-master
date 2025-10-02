@@ -148,8 +148,8 @@ grupSelector.addEventListener("change", () => {
     const grup = grupSelector.value;
     if (isBroadcasting && currentRoom) {
       if (currentKind === "url")
-        setStatus(`Emetent URL a la sala: ${currentRoom}`);
-      else setStatus(`Emetent a la sala: ${currentRoom}`);
+        showToast(`Emetent URL a la sala: ${currentRoom}`);
+      else showToast(`Emetent a la sala: ${currentRoom}`);
     } else {
       castSidebarTitle.textContent = grup ? `Emet a ${grup}` : "Emet a";
     }
@@ -174,10 +174,18 @@ castButton.addEventListener("click", () => {
   }
   showSidebar();
   castSidebarTitle.textContent = `Emet a ${grup}`;
-  castScreenTab.classList.add("active");
+
+  // Assegurar que només el tab de pantalla està actiu
+  castScreenTab.classList.remove("active");
   castUrlTab.classList.remove("active");
-  castScreenTabPane.classList.add("show", "active");
+  if (castMessageTab) castMessageTab.classList.remove("active");
+  castScreenTabPane.classList.remove("show", "active");
   castUrlTabPane.classList.remove("show", "active");
+  if (castMessageTabPane) castMessageTabPane.classList.remove("show", "active");
+
+  castScreenTab.classList.add("active");
+  castScreenTabPane.classList.add("show", "active");
+
   updateStudentDropdown();
 });
 
@@ -187,6 +195,7 @@ window.openCastSidebarForStudent = function (alumne) {
   // Amaga dropdown d'alumnes (no té sentit en mode individual)
   const dropdownWrapper = castStudentScreenDropdown?.parentElement;
   if (dropdownWrapper) dropdownWrapper.style.display = "none";
+
   if (
     castSidebar.style.display !== "none" &&
     castSidebarContainer.style.display !== "none"
@@ -196,10 +205,18 @@ window.openCastSidebarForStudent = function (alumne) {
   } else {
     showSidebar();
     castSidebarTitle.textContent = `Emet a ${alumne}`;
-    castScreenTab.classList.add("active");
+
+    // Assegurar que només el tab de pantalla està actiu
+    castScreenTab.classList.remove("active");
     castUrlTab.classList.remove("active");
-    castScreenTabPane.classList.add("show", "active");
+    if (castMessageTab) castMessageTab.classList.remove("active");
+    castScreenTabPane.classList.remove("show", "active");
     castUrlTabPane.classList.remove("show", "active");
+    if (castMessageTabPane)
+      castMessageTabPane.classList.remove("show", "active");
+
+    castScreenTab.classList.add("active");
+    castScreenTabPane.classList.add("show", "active");
   }
 };
 
@@ -208,29 +225,64 @@ castSidebarClose.addEventListener("click", () => {
   hideSidebar();
 });
 
-// Pestanyes
-castScreenTab.addEventListener("click", () => {
-  castScreenTab.classList.add("active");
-  castUrlTab.classList.remove("active");
-  castScreenTabPane.classList.add("show", "active");
-  castUrlTabPane.classList.remove("show", "active");
-});
-castUrlTab.addEventListener("click", () => {
-  castUrlTab.classList.add("active");
+// Pestanyes - gestió completa i consistent
+castScreenTab.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Treure active de tots els tabs
   castScreenTab.classList.remove("active");
-  castUrlTabPane.classList.add("show", "active");
-  castScreenTabPane.classList.remove("show", "active");
+  castUrlTab.classList.remove("active");
   if (castMessageTab) castMessageTab.classList.remove("active");
+
+  // Treure show i active de tots els panells
+  castScreenTabPane.classList.remove("show", "active");
+  castUrlTabPane.classList.remove("show", "active");
   if (castMessageTabPane) castMessageTabPane.classList.remove("show", "active");
+
+  // Activar tab i panell de pantalla
+  castScreenTab.classList.add("active");
+  castScreenTabPane.classList.add("show", "active");
 });
+
+castUrlTab.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Treure active de tots els tabs
+  castScreenTab.classList.remove("active");
+  castUrlTab.classList.remove("active");
+  if (castMessageTab) castMessageTab.classList.remove("active");
+
+  // Treure show i active de tots els panells
+  castScreenTabPane.classList.remove("show", "active");
+  castUrlTabPane.classList.remove("show", "active");
+  if (castMessageTabPane) castMessageTabPane.classList.remove("show", "active");
+
+  // Activar tab i panell d'URL
+  castUrlTab.classList.add("active");
+  castUrlTabPane.classList.add("show", "active");
+});
+
 if (castMessageTab) {
-  castMessageTab.addEventListener("click", () => {
-    castMessageTab.classList.add("active");
+  castMessageTab.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Treure active de tots els tabs
     castScreenTab.classList.remove("active");
     castUrlTab.classList.remove("active");
-    if (castMessageTabPane) castMessageTabPane.classList.add("show", "active");
+    castMessageTab.classList.remove("active");
+
+    // Treure show i active de tots els panells
     castScreenTabPane.classList.remove("show", "active");
     castUrlTabPane.classList.remove("show", "active");
+    if (castMessageTabPane)
+      castMessageTabPane.classList.remove("show", "active");
+
+    // Activar tab i panell de missatge
+    castMessageTab.classList.add("active");
+    if (castMessageTabPane) castMessageTabPane.classList.add("show", "active");
   });
 }
 
@@ -238,24 +290,36 @@ if (castMessageTab) {
 castShareUrlButton.addEventListener("click", async () => {
   const targetRoom = getCurrentTargetRoom();
   if (!targetRoom) {
-    alert("Selecciona un grup o alumne abans d'emetre");
+    showErrorToast("Selecciona un grup o alumne abans d'emetre");
     return;
   }
 
   if (isBroadcasting) {
-    alert("Ja estàs emetent. Atura l'emissió actual primer.");
+    showErrorToast("Ja estàs emetent. Atura l'emissió actual primer.");
     return;
   }
 
   const url = castUrlInput.value.trim();
   if (!url) {
-    alert("Introdueix una URL");
+    showErrorToast("Introdueix una URL");
     return;
   }
 
   if (!isValidHttpUrl(url)) {
-    alert("Introdueix una URL vàlida (http/https)");
+    showErrorToast("Introdueix una URL vàlida (http/https)");
     return;
+  }
+
+  // Comprova si és un document de Google Drive
+  if (
+    url.startsWith("https://drive.google.com") ||
+    url.startsWith("https://docs.google.com")
+  ) {
+    const confirmGoogleDoc = await showConfirmGoogleDocModal();
+    if (!confirmGoogleDoc) {
+      showWarningToast("Emissió cancel·lada");
+      return;
+    }
   }
 
   const interactive = !!castUrlInteractiu.checked;
@@ -266,17 +330,26 @@ castShareUrlButton.addEventListener("click", async () => {
 
   // Comprova si ja hi ha emissor i demana confirmació
   let proceed = true;
+  let noViewers = false;
   await new Promise((resolve) => {
     castSocket.emit("check-room", { room: targetRoom }, async (resp) => {
       if (resp && resp.hasBroadcaster) {
         proceed = await showConfirmReplaceModal();
+      }
+      // Si el servidor retorna informació de espectadors, anota-la (no bloqueja)
+      if (
+        resp &&
+        (resp.hasViewers === false ||
+          resp.viewers === 0 ||
+          resp.viewerCount === 0)
+      ) {
+        noViewers = true;
       }
       resolve();
     });
   });
 
   if (!proceed) {
-    setStatus("Operació cancel·lada");
     showToast("Operació cancel·lada");
     pendingShare = null;
     return;
@@ -288,7 +361,12 @@ castShareUrlButton.addEventListener("click", async () => {
   // Mostrar previsualització amb iframe
   showIframePreview(url);
 
-  setStatus("Compartint URL. Connectant...");
+  if (noViewers) {
+    showToast(
+      "No hi ha ningú connectat ara mateix. L'emissió quedarà preparada fins que s'uneixi algú.",
+      "warning"
+    );
+  }
 
   // Sol·licitar unió com a emissor d'URL
   castSocket.emit("broadcaster-join-request", {
@@ -304,21 +382,20 @@ if (castShareMessageButton) {
   castShareMessageButton.addEventListener("click", async () => {
     const targetRoom = getCurrentTargetRoom();
     if (!targetRoom) {
-      alert("Selecciona un grup o alumne abans d'emetre");
+      showErrorToast("Selecciona un grup o alumne abans d'emetre");
       return;
     }
     if (isBroadcasting) {
-      alert("Ja estàs emetent. Atura l'emissió actual primer.");
+      showErrorToast("Ja estàs emetent. Atura l'emissió actual primer.");
       return;
     }
     const txt = (castMessageText?.value || "").trim();
     if (!txt) {
-      alert("Introdueix un missatge");
+      showErrorToast("Introdueix un missatge");
       return;
     }
     let secs = parseInt(castMessageTime?.value || "10", 10);
     if (isNaN(secs) || secs < 0) secs = 0;
-    // Construeix URL cap a misssatge.html (sense tancar per clic)
     const base = window.authManager?.serverUrl || "";
     const url = `${base}/cast/misssatge.html?text=${encodeURIComponent(
       txt
@@ -330,16 +407,24 @@ if (castShareMessageButton) {
 
     // Comprova si ja hi ha emissor
     let proceed = true;
+    let noViewers = false;
     await new Promise((resolve) => {
       castSocket.emit("check-room", { room: targetRoom }, async (resp) => {
         if (resp && resp.hasBroadcaster) {
           proceed = await showConfirmReplaceModal();
         }
+        if (
+          resp &&
+          (resp.hasViewers === false ||
+            resp.viewers === 0 ||
+            resp.viewerCount === 0)
+        ) {
+          noViewers = true;
+        }
         resolve();
       });
     });
     if (!proceed) {
-      setStatus("Operació cancel·lada");
       showToast("Operació cancel·lada");
       pendingShare = null;
       return;
@@ -350,8 +435,12 @@ if (castShareMessageButton) {
 
     // Previsualització (iframe) del missatge
     showIframePreview(url);
-    setStatus("Compartint missatge. Connectant...");
-    showToast("Emetent missatge...");
+    if (noViewers) {
+      showToast(
+        "No hi ha ningú connectat ara mateix. L'emissió quedarà preparada fins que s'uneixi algú.",
+        "warning"
+      );
+    }
 
     castSocket.emit("broadcaster-join-request", {
       room: currentRoom,
@@ -387,73 +476,88 @@ castStopButton.addEventListener("click", () => {
 castShareScreenButton.addEventListener("click", async () => {
   const targetRoom = getCurrentTargetRoom();
   if (!targetRoom) {
-    alert("Selecciona un grup o alumne abans d'emetre");
+    showErrorToast("Selecciona un grup o alumne abans d'emetre");
     return;
   }
-
   if (isBroadcasting) {
-    alert("Ja estàs emetent. Atura l'emissió actual primer.");
+    showErrorToast("Ja estàs emetent. Atura l'emissió actual primer.");
     return;
   }
 
-  // Preparar dades de compartició
-  const choice = { kind: "webrtc" };
-  pendingShare = choice;
+  // 1) Obtenir pantalla immediatament dins del gest
+  try {
+    screenStream = await getScreenStream();
+  } catch (err) {
+    console.error("Error obtenint pantalla", err);
+    showToast(
+      "No s'ha pogut obtenir la pantalla. Revisa permisos del navegador.",
+      "error"
+    );
+    const reason = err?.name || err?.message || "";
+    alert(
+      reason && /NotAllowed|Permission|denied/i.test(String(reason))
+        ? "Has cancel·lat o el navegador ha denegat la captura de pantalla."
+        : "No s'ha pogut obtenir la pantalla. Pot ser que Electron bloquegi la captura o l'àudio."
+    );
+    return;
+  }
 
-  // Comprova si ja hi ha emissor i demana confirmació
+  // Mostrar previsualització i preparar onended
+  try {
+    await showVideoPreview(screenStream);
+  } catch (_) {}
+  const videoTrack = screenStream.getVideoTracks()[0];
+  if (videoTrack) {
+    videoTrack.onended = () => {
+      stopCast();
+      showToast("Compartició aturada");
+    };
+  }
+  // 2) Comprovar sala i confirmació fora del gest
   let proceed = true;
+  let noViewers = false;
+  pendingShare = { kind: "webrtc" };
   await new Promise((resolve) => {
     castSocket.emit("check-room", { room: targetRoom }, async (resp) => {
       if (resp && resp.hasBroadcaster) {
         proceed = await showConfirmReplaceModal();
+      }
+      if (
+        resp &&
+        (resp.hasViewers === false ||
+          resp.viewers === 0 ||
+          resp.viewerCount === 0)
+      ) {
+        noViewers = true;
       }
       resolve();
     });
   });
 
   if (!proceed) {
-    setStatus("Operació cancel·lada");
+    try {
+      const tracks = screenStream.getTracks();
+      tracks.forEach((t) => t.stop());
+    } catch {}
+    stopPreview();
     showToast("Operació cancel·lada");
     pendingShare = null;
     return;
   }
 
-  try {
-    // Obtenir pantalla amb preferència d'àudio
-    screenStream = await getScreenStreamPreferAudio();
-
-    currentRoom = targetRoom;
-    currentKind = "webrtc";
-
-    // Mostrar previsualització amb vídeo
-    await showVideoPreview(screenStream);
-
-    // Configurar event d'aturada automàtica
-    const videoTrack = screenStream.getVideoTracks()[0];
-    if (videoTrack) {
-      videoTrack.onended = () => {
-        stopCast();
-        showToast("Compartició aturada");
-      };
-    }
-
-    setStatus("Captura iniciada. Connectant...");
-
-    // Sol·licitar unió com a emissor
-    castSocket.emit("broadcaster-join-request", {
-      room: currentRoom,
-      kind: "webrtc",
-    });
-  } catch (err) {
-    console.error("Error obtenint pantalla", err);
-    setStatus(
-      "No s'ha pogut obtenir la pantalla. Revisa permisos del navegador."
+  currentRoom = targetRoom;
+  currentKind = "webrtc";
+  if (noViewers) {
+    showToast(
+      "No hi ha ningú connectat ara mateix. L'emissió quedarà preparada fins que s'uneixi algú.",
+      "warning"
     );
-    alert(
-      "No s'ha pogut obtenir la pantalla. Pot ser que Brave/Chrome bloquegi la captura o l'àudio."
-    );
-    pendingShare = null;
   }
+
+  castSocket.emit("broadcaster-join-request", {
+    room: currentRoom,
+    kind: "webrtc",
+  });
 });
 
 function stopPreview() {
@@ -509,29 +613,22 @@ function showIframePreview(url) {
 }
 
 // Funcions auxiliars per cast
-async function getScreenStreamPreferAudio() {
+async function getScreenStream() {
+  if (
+    !navigator.mediaDevices ||
+    typeof navigator.mediaDevices.getDisplayMedia !== "function"
+  ) {
+    throw new DOMException("Screen capture no suportada", "NotSupportedError");
+  }
+
   try {
-    // Primer intent: amb àudio
-    return await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: true,
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: "always" },
+      audio: false,
     });
+    return stream;
   } catch (e1) {
-    console.warn(
-      "getDisplayMedia amb àudio ha fallat, reintentant sense àudio",
-      e1
-    );
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-      setStatus("Captura sense àudio (permisos/navegador)");
-      showToast("Captura iniciada sense àudio");
-      return stream;
-    } catch (e2) {
-      throw e1;
-    }
+    throw e1;
   }
 }
 
@@ -542,125 +639,6 @@ function isValidHttpUrl(value) {
   } catch {
     return false;
   }
-}
-
-function showToast(text, timeoutMs = 3000) {
-  if (toastEl) {
-    // Si existeix un element toast global, usar-lo però posicionar-lo millor
-    toastEl.textContent = text;
-
-    // Determinar posició segons si la sidebar està oberta
-    const topPosition = isSidebarVisible() ? "80px" : "20px";
-
-    // Assegurar posicionament consistent
-    toastEl.style.cssText = `
-      position: fixed;
-      top: ${topPosition};
-      left: 50%;
-      transform: translateX(-50%);
-      background: #333;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 6px;
-      z-index: 10050;
-      font-size: 14px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      border: 1px solid #555;
-      text-align: center;
-      max-width: 400px;
-      word-wrap: break-word;
-      transition: all 0.3s ease;
-    `;
-
-    toastEl.classList.add("show");
-    setTimeout(() => {
-      toastEl.classList.remove("show");
-    }, timeoutMs);
-  } else {
-    // Fallback: usar sistema de toasts temporals
-    console.log("Toast:", text);
-    createTemporaryToast(text, timeoutMs);
-  }
-}
-
-function createTemporaryToast(text, timeoutMs = 3000) {
-  // Crear contenidor de toasts si no existeix
-  let toastContainer = document.getElementById("cast-toast-container");
-  if (!toastContainer) {
-    toastContainer = document.createElement("div");
-    toastContainer.id = "cast-toast-container";
-    toastContainer.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10050;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-      max-width: 400px;
-    `;
-
-    // Ajustar posició si la sidebar està oberta
-    if (isSidebarVisible()) {
-      toastContainer.style.top = "80px"; // Més espai quan la sidebar està oberta
-    }
-
-    document.body.appendChild(toastContainer);
-  }
-
-  const toast = document.createElement("div");
-  toast.style.cssText = `
-    background: #333;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    border: 1px solid #555;
-    text-align: center;
-    opacity: 0;
-    transform: translateY(-20px);
-    transition: all 0.3s ease;
-    pointer-events: auto;
-    word-wrap: break-word;
-  `;
-  toast.textContent = text;
-
-  // Afegir toast al contenidor
-  toastContainer.appendChild(toast);
-
-  // Animar entrada
-  setTimeout(() => {
-    toast.style.opacity = "1";
-    toast.style.transform = "translateY(0)";
-  }, 10);
-
-  // Animar sortida i eliminar
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateY(-20px)";
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-        // Eliminar contenidor si està buit
-        if (toastContainer.children.length === 0) {
-          toastContainer.remove();
-        }
-      }
-    }, 300);
-  }, timeoutMs);
-}
-
-// Funció auxiliar per detectar si la sidebar està visible
-function isSidebarVisible() {
-  return (
-    castSidebar &&
-    castSidebarContainer &&
-    castSidebar.style.display !== "none" &&
-    castSidebarContainer.style.display !== "none"
-  );
 }
 
 function showConfirmReplaceModal() {
@@ -709,13 +687,17 @@ function createTemporaryConfirmModal() {
   });
 }
 
-function setStatus(text) {
-  // Actualitzar el títol de la sidebar amb l'estat
-  if (castSidebarTitle) {
-    const room = getCurrentTargetRoom();
-    castSidebarTitle.textContent = room ? `${room} - ${text}` : text;
-  }
-  console.log("Status:", text);
+function showConfirmGoogleDocModal() {
+  return new Promise((resolve) => {
+    const result = confirm(
+      "⚠️ AVÍS: Document de Google Drive\n\n" +
+        "Els alumnes veuran aquest document com a usuari sense sessió iniciada.\n\n" +
+        "Assegura't que el document tingui permisos d'accés públic o compartit " +
+        "amb tothom que necessiti veure'l.\n\n" +
+        "Vols continuar amb l'emissió?"
+    );
+    resolve(result);
+  });
 }
 
 // Funció per actualitzar la llista d'alumnes connectats al dropdown
@@ -754,7 +736,7 @@ function updateStudentDropdown() {
 
   if (alumnesConnectats.length === 0) {
     castStudentScreenMenu.innerHTML +=
-      '<li><span class="dropdown-item-text text-muted">Cap alumne connectat</span></li>';
+      '<li><span class="dropdown-item-text text-muted">Cap alumne connectat.</span></li>';
     return;
   }
 
@@ -789,12 +771,12 @@ window.updateCastStudentData = updateStudentData;
 async function shareStudentScreen(alumneNom, alumneIp) {
   const grup = grupSelector.value;
   if (!grup) {
-    alert("Selecciona un grup abans d'emetre");
+    showErrorToast("Selecciona un grup abans d'emetre");
     return;
   }
 
   if (isBroadcasting) {
-    alert("Ja estàs emetent. Atura l'emissió actual primer.");
+    showErrorToast("Ja estàs emetent. Atura l'emissió actual primer.");
     return;
   }
 
@@ -817,7 +799,6 @@ async function shareStudentScreen(alumneNom, alumneIp) {
   });
 
   if (!proceed) {
-    setStatus("Operació cancel·lada");
     showToast("Operació cancel·lada");
     pendingShare = null;
     return;
@@ -829,7 +810,6 @@ async function shareStudentScreen(alumneNom, alumneIp) {
   // Mostrar previsualització amb iframe
   showIframePreview(studentUrl);
 
-  setStatus(`Compartint pantalla de ${alumneNom}. Connectant...`);
   showToast(`Emetent pantalla de ${alumneNom} al grup`);
 
   // Sol·licitar unió com a emissor d'URL
@@ -869,8 +849,6 @@ function stopCast(localOnly = false) {
   currentKind = null;
   currentRoom = null;
   pendingShare = null;
-
-  setStatus("Aturat");
 }
 
 function createPeerConnectionForViewer(viewerId) {
@@ -913,10 +891,8 @@ function bindCastSocketHandlersOnce() {
   castSocket.on("broadcaster-accepted", () => {
     isBroadcasting = true;
     if (currentKind === "url") {
-      setStatus(`Emetent URL a la sala: ${currentRoom}`);
       showToast(`Emetent URL al grup: ${currentRoom}`);
     } else {
-      setStatus(`Emetent a la sala: ${currentRoom}`);
       showToast(`Emetent pantalla al grup: ${currentRoom}`);
     }
   });
@@ -964,11 +940,9 @@ function bindCastSocketHandlersOnce() {
 
   castSocket.on("force-disconnect", () => {
     stopCast(true);
-    setStatus(
-      "S'ha aturat la compartició: algú altre està emetent en aquesta sala"
-    );
     showToast(
-      "Algú altre està emetent en aquesta sala. S'ha aturat la teva emissió."
+      "Algú altre està emetent en aquesta sala. S'ha aturat la teva emissió.",
+      "warning"
     );
   });
 
@@ -984,14 +958,12 @@ function bindCastSocketHandlersOnce() {
       payload.kind = "webrtc";
     }
     castSocket.emit("confirm-replace", payload);
-    setStatus("Substituint l'emissor existent...");
     showToast("Substituint emissor existent...");
   });
 
   castSocket.on("replace-declined", () => {
     stopCast(true);
-    setStatus("Substitució rebutjada");
-    showToast("Substitució rebutjada");
+    showErrorToast("Substitució rebutjada");
   });
 }
 

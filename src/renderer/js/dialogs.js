@@ -89,7 +89,7 @@ export function creaWebMenuJSON(
       url === "https://" ||
       url === "http://"
     ) {
-      alert(
+      showErrorToast(
         "No es pot obrir l'enllaç: " +
           (info?.webPage?.title || "Sense títol") +
           " (" +
@@ -132,7 +132,7 @@ export function creaWebMenuJSON(
 
   const mostrarBloquejos = (info) => {
     // TODO troba les normes que han causat el bloqueig i filtra-les
-    bootbox.alert("Aquesta funcionalitat no està implementada encara.");
+    showWarningToast("Aquesta funcionalitat no està implementada encara.");
   };
 
   const onTanca = (info) => {
@@ -326,13 +326,10 @@ export function obreDialogBloquejaWeb(
     menustate.editPrevious = undefined;
   } else {
     if (!menustate.durada) {
-      bootbox.alert({
-        message:
-          "Es modificarà la durada de la norma per defecte a <strong>sempre</strong> ja que no es " +
-          "pot recuperar la durada de la norma. Revisa el camp.",
-        size: "small",
-        centerVertical: true,
-      });
+      showWarningToast(
+        "Es modificarà la durada de la norma per defecte a sempre ja que no es pot recuperar la durada de la norma. Revisa el camp.",
+        5000
+      );
       menustate.durada = "always";
     }
   }
@@ -493,24 +490,18 @@ export function obreDialogBloquejaWeb(
     const title = titleInput.value;
 
     if (title === "") {
-      bootbox.alert({
-        message:
-          "El títol ha de contenir almenys una paraula per a la cerca de paraules senceres.",
-        size: "small",
-        centerVertical: true,
-      });
+      showWarningToast(
+        "El títol ha de contenir almenys una paraula per a la cerca de paraules senceres."
+      );
       return;
     } else if (title.startsWith("\\b(") && title.endsWith(")\\b")) {
       titleInput.value = title.substring(3, title.length - 3);
       titleOptionW.classList.remove("word-filtering");
       return;
     } else if (title.includes(" ")) {
-      bootbox.alert({
-        message:
-          "El títol no pot contenir espais en blanc per a la cerca de paraules senceres",
-        size: "small",
-        centerVertical: true,
-      });
+      showWarningToast(
+        "El títol no pot contenir espais en blanc per a la cerca de paraules senceres"
+      );
       return;
     }
 
@@ -524,11 +515,7 @@ export function obreDialogBloquejaWeb(
 
   normaButton.onclick = (event) => {
     if (!normaWhoId) {
-      bootbox.alert({
-        message: "Error falta seleccionar l'alumne o el grup",
-        size: "small",
-        centerVertical: true,
-      });
+      showErrorToast("Error: falta seleccionar l'alumne o el grup");
       return;
     }
 
@@ -548,11 +535,7 @@ export function obreDialogBloquejaWeb(
     ];
 
     if (!list[0].host && !list[0].pathname && !list[0].title) {
-      bootbox.alert({
-        message: "Els camps estan buits",
-        size: "small",
-        centerVertical: true,
-      });
+      showErrorToast("Els camps estan buits");
       return;
     }
 
@@ -756,11 +739,9 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     };
     pencil.onclick = (event) => {
       if (normesWebInfo[whos][whoid][norma].mode !== "blacklist") {
-        bootbox.alert({
-          message: `Aquesta norma no es pot editar (encara) perquè és una llista blanca`,
-          size: "small",
-          centerVertical: true,
-        });
+        showWarningToast(
+          "Aquesta norma no es pot editar (encara) perquè és una llista blanca"
+        );
         return;
       }
       normesModal.hide();
@@ -1176,11 +1157,7 @@ export function obreDialogAfegeixLlistaBlanca(grup) {
 
     const enabled_on = construeixEnabledOn(hSelectDurada.value, nowHM);
     if (list.length === 0) {
-      bootbox.alert({
-        message: "No hi ha cap web a la llista blanca",
-        size: "small",
-        centerVertical: true,
-      });
+      showErrorToast("No hi ha cap web a la llista blanca");
       return;
     }
     obre_confirmacio(

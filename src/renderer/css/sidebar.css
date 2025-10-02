@@ -105,6 +105,30 @@ ul {
   padding: 10px;
 }
 
+/* Assegurar que els tab-panes no visibles estiguin realment amagats */
+.tab-pane {
+  display: none;
+  pointer-events: none;
+}
+
+.tab-pane.active {
+  display: block;
+  pointer-events: auto;
+}
+
+.tab-pane.show {
+  display: block;
+  pointer-events: auto;
+}
+
+/* Assegurar que els inputs dins dels tabs siguin interactius */
+#castTabContent input,
+#castTabContent textarea,
+#castTabContent button,
+#castTabContent .form-check-input {
+  pointer-events: auto;
+}
+
 .cast-stop-button {
   text-align: center;
   width: 100%;

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, desktopCapturer } = require("electron");
 
 // Exposa APIs segures al renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -8,6 +8,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setConfig: (config) => ipcRenderer.invoke("set-config", config),
   logError: (message, stack) => ipcRenderer.invoke("log-error", message, stack),
   openExternal: (url) => ipcRenderer.invoke("open-external", url),
+  // Desktop capture sources (for fallback when getDisplayMedia is not supported)
+  getDesktopSources: (options) =>
+    desktopCapturer.getSources(options || { types: ["screen"] }),
 
   // APIs per a la comunicació amb el servidor PalamSRV
   onServerMessage: (callback) => ipcRenderer.on("server-message", callback),

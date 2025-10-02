@@ -5,6 +5,7 @@ const {
   ipcMain,
   dialog,
   shell,
+  session,
 } = require("electron");
 const path = require("path");
 
@@ -22,6 +23,8 @@ function createWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       preload: path.join(__dirname, "preload.js"),
+      // Enable getDisplayMedia in Electron contexts
+      // Note: handled via permission request below
     },
     // Icona de l'aplicació: nou logo palamblock
     icon: path.join(__dirname, "renderer", "images", "palamblock-logo.png"),
@@ -148,7 +151,73 @@ function openConfigWindow() {
 }
 
 // Aquesta funció s'executarà quan Electron hagi acabat d'inicialitzar-se
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // Allow screen capture permissions abans de crear finestres
+  const ses = session.defaultSession;
+  try {
+    // Handler específic per a getDisplayMedia (requerit per Electron >= 16)
+    if (typeof ses.setDisplayMediaRequestHandler === "function") {
+      ses.setDisplayMediaRequestHandler((request, callback) => {
+        // Retornar les fonts de pantalla disponibles
+        const { desktopCapturer } = require("electron");
+        desktopCapturer
+          .getSources({ types: ["screen", "window"] })
+          .then((sources) => {
+            // Aprovar la petició amb la primera font de pantalla
+            if (sources.length > 0) {
+              callback({ video: sources[0], audio: "loopback" });
+            } else {
+              callback({});
+            }
+          })
+          .catch((err) => {
+            console.error("Error obtenint sources:", err);
+            callback({});
+          });
+      });
+    }
+
+    ses.setPermissionRequestHandler(
+      (webContents, permission, callback, details) => {
+        try {
+          console.log(
+            "Permission request:",
+            permission,
+            details?.mediaTypes || details
+          );
+        } catch {}
+
+        // Permet captura de pantalla (getDisplayMedia)
+        if (permission === "display-capture") {
+          return callback(true);
+        }
+
+        // Permet captura de media (vídeo/àudio)
+        if (permission === "media") {
+          return callback(true);
+        }
+
+        // Per defecte denega
+        return callback(false);
+      }
+    );
+
+    // Opcional: permet abans de demanar (check) per a display-capture
+    if (typeof ses.setPermissionCheckHandler === "function") {
+      ses.setPermissionCheckHandler(
+        (webContents, permission, requestingOrigin, details) => {
+          if (permission === "display-capture") return true;
+          if (permission === "media") return true;
+          return false;
+        }
+      );
+    }
+  } catch (e) {
+    console.warn("No s'ha pogut establir els gestors de permisos:", e);
+  }
+
+  createWindow();
+});
 
 // Surt quan totes les finestres estan tancades
 app.on("window-all-closed", () => {
