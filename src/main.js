@@ -8,6 +8,12 @@ const {
   session,
 } = require("electron");
 const path = require("path");
+const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
+
+// Configuració del logger per l'autoUpdater
+log.transports.file.level = "info";
+autoUpdater.logger = log;
 
 let mainWindow;
 
@@ -38,6 +44,13 @@ function createWindow() {
   // Mostra la finestra quan estigui llesta
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
+
+    // Comprova actualitzacions en producció (no en mode desenvolupament)
+    if (!process.argv.includes("--dev")) {
+      setTimeout(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+      }, 3000);
+    }
 
     // Obre DevTools en mode desenvolupament
     if (process.argv.includes("--dev")) {
@@ -290,4 +303,115 @@ ipcMain.handle("open-external", async (event, url) => {
     console.error("open-external failed:", e);
     return false;
   }
+});
+
+// ========================================
+// AUTO-UPDATER - Gestió d'actualitzacions
+// ========================================
+
+autoUpdater.on("checking-for-update", () => {
+  log.info("Comprovant actualitzacions...");
+  if (mainWindow) {
+    mainWindow.webContents.send("update-status", {
+      status: "checking",
+      message: "Comprovant actualitzacions...",
+    });
+  }
+});
+
+autoUpdater.on("update-available", (info) => {
+  log.info("Actualització disponible:", info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send("update-available", {
+      version: info.version,
+      releaseNotes: info.releaseNotes,
+      releaseDate: info.releaseDate,
+    });
+  }
+});
+
+autoUpdater.on("update-not-available", (info) => {
+  log.info("Aplicació actualitzada. Versió actual:", info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send("update-status", {
+      status: "up-to-date",
+      message: "L'aplicació està actualitzada",
+      version: info.version,
+    });
+  }
+});
+
+autoUpdater.on("error", (err) => {
+  log.error("Error en actualització:", err);
+  if (mainWindow) {
+    mainWindow.webContents.send("update-error", {
+      message: err.message || "Error desconegut",
+      stack: err.stack,
+    });
+  }
+});
+
+autoUpdater.on("download-progress", (progressObj) => {
+  const logMessage = `Velocitat: ${Math.round(
+    progressObj.bytesPerSecond / 1024
+  )} KB/s - Descarregat: ${progressObj.percent.toFixed(2)}% (${Math.round(
+    progressObj.transferred / 1024 / 1024
+  )}MB/${Math.round(progressObj.total / 1024 / 1024)}MB)`;
+  log.info(logMessage);
+  if (mainWindow) {
+    mainWindow.webContents.send("download-progress", {
+      percent: progressObj.percent,
+      bytesPerSecond: progressObj.bytesPerSecond,
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+    });
+  }
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+  log.info("Actualització descarregada. Versió:", info.version);
+  if (mainWindow) {
+    mainWindow.webContents.send("update-downloaded", {
+      version: info.version,
+      releaseNotes: info.releaseNotes,
+    });
+  }
+
+  // Mostra diàleg per instal·lar
+  dialog
+    .showMessageBox(mainWindow, {
+      type: "info",
+      title: "Actualització disponible",
+      message: `Nova versió ${info.version} descarregada`,
+      detail: "L'aplicació es reiniciarà per completar la instal·lació.",
+      buttons: ["Instal·lar ara", "Instal·lar més tard"],
+      defaultId: 0,
+      cancelId: 1,
+    })
+    .then((result) => {
+      if (result.response === 0) {
+        setImmediate(() => autoUpdater.quitAndInstall());
+      }
+    });
+});
+
+// IPC handlers per actualitzacions
+ipcMain.handle("check-for-updates", async () => {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return {
+      success: true,
+      updateInfo: result.updateInfo,
+    };
+  } catch (error) {
+    log.error("Error comprovant actualitzacions:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
+
+ipcMain.handle("install-update", () => {
+  autoUpdater.quitAndInstall();
 });

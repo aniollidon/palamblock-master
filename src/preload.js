@@ -12,6 +12,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getDesktopSources: (options) =>
     desktopCapturer.getSources(options || { types: ["screen"] }),
 
+  // Auto-updater
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  installUpdate: () => ipcRenderer.invoke("install-update"),
+  onUpdateStatus: (callback) =>
+    ipcRenderer.on("update-status", (event, data) => callback(data)),
+  onUpdateAvailable: (callback) =>
+    ipcRenderer.on("update-available", (event, data) => callback(data)),
+  onUpdateDownloaded: (callback) =>
+    ipcRenderer.on("update-downloaded", (event, data) => callback(data)),
+  onDownloadProgress: (callback) =>
+    ipcRenderer.on("download-progress", (event, data) => callback(data)),
+  onUpdateError: (callback) =>
+    ipcRenderer.on("update-error", (event, data) => callback(data)),
+
   // APIs per a la comunicació amb el servidor PalamSRV
   onServerMessage: (callback) => ipcRenderer.on("server-message", callback),
   removeServerListeners: () => ipcRenderer.removeAllListeners("server-message"),
