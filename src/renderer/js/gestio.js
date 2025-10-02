@@ -323,6 +323,74 @@ async function canviarClauAlumne(alumneId, novaClau) {
 }
 
 // ============================================
+// PROFESSORS / ADMINISTRADORS
+// ============================================
+
+/**
+ * Crear un nou professor/administrador
+ */
+async function crearProfessor(user, clau) {
+  if (!user || typeof user !== "string" || user.trim() === "") {
+    showErrorToast("L'usuari no és vàlid");
+    throw new Error("L'usuari no és vàlid");
+  }
+  if (!clau || typeof clau !== "string" || clau.trim() === "") {
+    showErrorToast("La contrasenya no és vàlida");
+    throw new Error("La contrasenya no és vàlida");
+  }
+
+  try {
+    await wsOperation("createAdmin", { user, clau });
+    showSuccessToast(`Professor ${user} creat correctament`);
+  } catch (error) {
+    showErrorToast(`Error creant professor: ${error.message}`);
+    console.error("Error creant professor:", error);
+    throw error;
+  }
+}
+
+/**
+ * Actualitzar contrasenya d'un professor
+ */
+async function actualitzarProfessor(user, clau) {
+  if (!clau || typeof clau !== "string" || clau.trim() === "") {
+    showErrorToast("La contrasenya no és vàlida");
+    throw new Error("La contrasenya no és vàlida");
+  }
+
+  try {
+    await wsOperation("updateAdmin", { user, clau });
+    showSuccessToast(`Contrasenya del professor ${user} actualitzada`);
+  } catch (error) {
+    showErrorToast(`Error actualitzant professor: ${error.message}`);
+    console.error("Error actualitzant professor:", error);
+    throw error;
+  }
+}
+
+/**
+ * Esborrar un professor
+ */
+async function esborrarProfessor(user) {
+  if (
+    !confirm(
+      `Segur que vols esborrar el professor ${user}?\n\nAquesta acció no es pot desfer.`
+    )
+  ) {
+    return;
+  }
+
+  try {
+    await wsOperation("deleteAdmin", { user });
+    showSuccessToast(`Professor ${user} esborrat correctament`);
+  } catch (error) {
+    showErrorToast(`Error esborrant professor: ${error.message}`);
+    console.error("Error esborrant professor:", error);
+    throw error;
+  }
+}
+
+// ============================================
 // EXPORTACIONS
 // ============================================
 
@@ -339,6 +407,11 @@ window.GestioAPI = {
   crearGrup,
   actualitzarGrup,
   esborrarGrup,
+
+  // Professors
+  crearProfessor,
+  actualitzarProfessor,
+  esborrarProfessor,
 
   // Utilitats
   validarAlumneId,

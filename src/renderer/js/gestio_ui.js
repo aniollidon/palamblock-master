@@ -10,9 +10,12 @@
 
 // Variables globals
 let grupAlumnesData = {};
+let professorsData = [];
 let modalAlumneInstance = null;
 let modalGrupInstance = null;
+let modalProfessorInstance = null;
 let socketListener = null;
+let socketListenerAdmins = null;
 
 // ============================================
 // LIFECYCLE FUNCTIONS (per view-manager)
@@ -30,6 +33,7 @@ export function mountGestioView() {
   // Inicialitzar modals (dispose primer per si ja existien)
   const modalAlumneEl = document.getElementById("modalAlumne");
   const modalGrupEl = document.getElementById("modalGrup");
+  const modalProfessorEl = document.getElementById("modalProfessor");
 
   if (modalAlumneEl) {
     // Dispose de la instància anterior si existeix
@@ -44,6 +48,13 @@ export function mountGestioView() {
       modalGrupInstance.dispose();
     }
     modalGrupInstance = new bootstrap.Modal(modalGrupEl);
+  }
+  if (modalProfessorEl) {
+    // Dispose de la instància anterior si existeix
+    if (modalProfessorInstance) {
+      modalProfessorInstance.dispose();
+    }
+    modalProfessorInstance = new bootstrap.Modal(modalProfessorEl);
   }
 
   // Event listeners
@@ -61,6 +72,10 @@ export function unmountGestioView() {
     window.socket.off("grupAlumnesList", socketListener);
     socketListener = null;
   }
+  if (socketListenerAdmins && window.socket) {
+    window.socket.off("adminsList", socketListenerAdmins);
+    socketListenerAdmins = null;
+  }
 
   // Netejar modals
   if (modalAlumneInstance) {
@@ -70,6 +85,10 @@ export function unmountGestioView() {
   if (modalGrupInstance) {
     modalGrupInstance.dispose();
     modalGrupInstance = null;
+  }
+  if (modalProfessorInstance) {
+    modalProfessorInstance.dispose();
+    modalProfessorInstance = null;
   }
 
   // Netejar backdrops que puguin quedar
@@ -100,6 +119,9 @@ function setupEventListeners() {
   document
     .getElementById("btnNouGrup")
     ?.addEventListener("click", obrirModalNouGrup);
+  document
+    .getElementById("btnNouProfessor")
+    ?.addEventListener("click", nouProfessor);
 
   // Formularis
   document
@@ -108,6 +130,9 @@ function setupEventListeners() {
   document
     .getElementById("formGrup")
     ?.addEventListener("submit", handleSubmitGrup);
+  document
+    .getElementById("formProfessor")
+    ?.addEventListener("submit", handleSubmitProfessor);
 
   // Filtres i cerca
   document
@@ -127,6 +152,10 @@ function setupEventListeners() {
     .getElementById("filtreEstatGrups")
     ?.addEventListener("change", filtrarGrups);
 
+  document
+    .getElementById("cercaProfessors")
+    ?.addEventListener("input", renderitzarTaulaProfessors);
+
   // Listener per actualitzacions del socket
   if (window.socket) {
     socketListener = (grups) => {
@@ -135,6 +164,13 @@ function setupEventListeners() {
       renderitzarTaules();
     };
     window.socket.on("grupAlumnesList", socketListener);
+
+    socketListenerAdmins = (admins) => {
+      console.log("Rebudes dades actualitzades de professors", admins);
+      professorsData = admins;
+      renderitzarTaulaProfessors();
+    };
+    window.socket.on("adminsList", socketListenerAdmins);
   } else {
     console.warn("[GESTIO] Socket no disponible!");
   }
@@ -152,6 +188,13 @@ function requestInitialData() {
   if (window.socket && window.socket.connected) {
     console.log("[GESTIO] Emetent getGrupAlumnesList");
     window.socket.emit("getGrupAlumnesList");
+    console.log("[GESTIO] Emetent getAdminsList");
+    window.socket.emit("getAdminsList", (response) => {
+      if (response && response.status === "OK") {
+        professorsData = response.data;
+        renderitzarTaulaProfessors();
+      }
+    });
   } else {
     console.warn("[GESTIO] Socket no connectat, reintentant en 2s...");
     setTimeout(requestInitialData, 2000);
@@ -168,6 +211,7 @@ function requestInitialData() {
 function renderitzarTaules() {
   renderitzarTaulaAlumnes();
   renderitzarTaulaGrups();
+  renderitzarTaulaProfessors();
   actualitzarSelectsGrups();
 }
 
@@ -622,10 +666,133 @@ async function confirmarEsborrarGrup(grupId, nom) {
   }
 }
 
+// ============================================
+// GESTIÓ DE PROFESSORS
+// ============================================
+
+/**
+ * Renderitzar taula de professors
+ */
+function renderitzarTaulaProfessors() {
+  const tbody = document.getElementById("taulaProfessors");
+  if (!tbody) return;
+
+  // Aplicar cerca
+  const cerca =
+    document.getElementById("cercaProfessors")?.value.toLowerCase() || "";
+
+  let professors = professorsData.filter((p) =>
+    p.user.toLowerCase().includes(cerca)
+  );
+
+  if (professors.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="2" class="text-center text-muted">
+          <i class="bi bi-inbox"></i> No hi ha professors
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = professors
+    .map(
+      (prof) => `
+      <tr>
+        <td>${prof.user}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary" onclick="editarProfessor('${prof.user}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+              <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
+              <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-outline-danger" onclick="confirmarEsborrarProfessor('${prof.user}')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+            </svg>
+          </button>
+        </td>
+      </tr>
+    `
+    )
+    .join("");
+}
+
+/**
+ * Obrir modal per crear un nou professor
+ */
+function nouProfessor() {
+  document.getElementById("professorMode").value = "create";
+  document.getElementById("professorUser").value = "";
+  document.getElementById("professorUser").disabled = false;
+  document.getElementById("professorClau").value = "";
+  document.getElementById("professorClau").required = true;
+  document.getElementById("modalProfessorTitle").textContent = "Nou Professor";
+  document.getElementById("professorClauHelp").textContent =
+    "Contrasenya per l'usuari (mínim 4 caràcters)";
+  modalProfessorInstance?.show();
+}
+
+/**
+ * Editar professor
+ */
+function editarProfessor(user) {
+  document.getElementById("professorMode").value = "edit";
+  document.getElementById("professorUser").value = user;
+  document.getElementById("professorUser").disabled = true;
+  document.getElementById("professorClau").value = "";
+  document.getElementById("professorClau").required = true;
+  document.getElementById("modalProfessorTitle").textContent =
+    "Canviar Contrasenya";
+  document.getElementById("professorClauHelp").textContent =
+    "Nova contrasenya per l'usuari";
+  modalProfessorInstance?.show();
+}
+
+/**
+ * Guardar professor (crear o actualitzar)
+ */
+async function handleSubmitProfessor(e) {
+  e.preventDefault();
+
+  const mode = document.getElementById("professorMode").value;
+  const user = document.getElementById("professorUser").value.trim();
+  const clau = document.getElementById("professorClau").value;
+
+  try {
+    if (mode === "create") {
+      await window.GestioAPI.crearProfessor(user, clau);
+    } else {
+      await window.GestioAPI.actualitzarProfessor(user, clau);
+    }
+
+    modalProfessorInstance?.hide();
+    document.getElementById("formProfessor").reset();
+  } catch (error) {
+    console.error("Error en handleSubmitProfessor:", error);
+  }
+}
+
+/**
+ * Confirmar esborrat de professor
+ */
+async function confirmarEsborrarProfessor(user) {
+  try {
+    await window.GestioAPI.esborrarProfessor(user);
+  } catch (error) {
+    console.error("Error esborrant professor:", error);
+  }
+}
+
 // Exposar funcions globalment per poder cridar-les des dels onclick del HTML
 window.editarAlumne = editarAlumne;
 window.confirmarEsborrarAlumne = confirmarEsborrarAlumne;
 window.editarGrup = editarGrup;
 window.confirmarEsborrarGrup = confirmarEsborrarGrup;
+window.editarProfessor = editarProfessor;
+window.confirmarEsborrarProfessor = confirmarEsborrarProfessor;
 
 console.log("Super Mode UI carregat");

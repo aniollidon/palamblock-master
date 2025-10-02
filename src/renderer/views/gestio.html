@@ -49,6 +49,12 @@
                     <i class="bi bi-diagram-3-fill"></i> Grups
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="professors-tab" data-bs-toggle="tab" data-bs-target="#professors-pane"
+                    type="button" role="tab">
+                    <i class="bi bi-person-badge-fill"></i> Professors
+                </button>
+            </li>
         </ul>
 
         <!-- Contingut de les pestanyes -->
@@ -164,6 +170,48 @@
                     </table>
                 </div>
             </div>
+
+            <!-- ============================================ -->
+            <!-- PESTANYA PROFESSORS -->
+            <!-- ============================================ -->
+            <div class="tab-pane fade" id="professors-pane" role="tabpanel" tabindex="0">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <button class="btn btn-primary" id="btnNouProfessor">
+                            <i class="bi bi-person-plus-fill"></i> Nou Professor
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cerca -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Cerca</label>
+                        <input type="text" class="form-control" id="cercaProfessors"
+                            placeholder="Usuari del professor..." />
+                    </div>
+                </div>
+
+                <!-- Taula de professors -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Usuari</th>
+                                <th>Accions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taulaProfessors">
+                            <!-- Contingut dinàmic -->
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">
+                                    <i class="bi bi-hourglass-split"></i> Carregant professors...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -273,6 +321,53 @@
                         Cancel·la
                     </button>
                     <button type="submit" form="formGrup" class="btn btn-primary">
+                        Desa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: NOU/EDITAR PROFESSOR -->
+    <!-- ============================================ -->
+    <div class="modal fade" id="modalProfessor" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalProfessorTitle">Nou Professor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formProfessor">
+                        <input type="hidden" id="professorMode" value="create" />
+
+                        <div class="mb-3">
+                            <label for="professorUser" class="form-label">Usuari <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="professorUser" required pattern="[-a-zA-Z0-9_]+"
+                                placeholder="ex: professor01" />
+                            <div class="form-text">
+                                Només lletres, números, guions i guions baixos
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="professorClau" class="form-label">Contrasenya <span
+                                    class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="professorClau" minlength="4"
+                                placeholder="Mínim 4 caràcters" required />
+                            <div class="form-text" id="professorClauHelp">
+                                En mode edició, la nova contrasenya per l'usuari
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel·la
+                    </button>
+                    <button type="submit" form="formProfessor" class="btn btn-primary">
                         Desa
                     </button>
                 </div>
