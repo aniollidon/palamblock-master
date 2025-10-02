@@ -30,6 +30,12 @@ export function mountHomeView() {
     hint.textContent = "Mode super actiu";
     hint.classList.remove("text-muted", "text-info");
     hint.classList.add("text-success", "fw-semibold");
+
+    // Mostrar el botó de Gestió
+    const gestioBtn = document.getElementById("gestioButton");
+    if (gestioBtn) {
+      gestioBtn.style.display = "";
+    }
   };
   if (isSuperUser()) {
     showActive();
@@ -79,6 +85,12 @@ export function mountHomeView() {
       } catch (_) {}
       showActive();
       clearTimeout(resetTimer);
+
+      // Mostrar el botó de Gestió
+      const gestioBtn = document.getElementById("gestioButton");
+      if (gestioBtn) {
+        gestioBtn.style.display = "";
+      }
     }
   };
 

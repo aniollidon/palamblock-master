@@ -15,6 +15,10 @@ class ViewManager {
         title: "PalamBlock Admin - Pantalles",
         templateFile: "views/screens.html",
       },
+      gestio: {
+        title: "PalamBlock Admin - Gestió",
+        templateFile: "views/gestio.html",
+      },
     };
     this.viewInstances = new Map();
 
@@ -224,6 +228,63 @@ class ViewManager {
               try {
                 const mod = await import("./screens_view.js");
                 mod.unmountScreensView?.();
+              } catch (_) {}
+            },
+          });
+        }
+        break;
+
+      case "gestio":
+        // Inicialitza la vista de gestió d'alumnes i grups
+        try {
+          console.log("[VIEW] Carregant gestio.js (API)");
+          await import("./gestio.js");
+          console.log("[VIEW] Carregant gestio_ui.js");
+          const mod = await import("./gestio_ui.js");
+          if (mod && typeof mod.mountGestioView === "function") {
+            await mod.mountGestioView();
+          }
+
+          // Enllaços de navegació
+          setTimeout(() => {
+            const brandLogo = document.getElementById("brandLogoGestio");
+            if (brandLogo && !brandLogo.dataset._bound) {
+              brandLogo.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.loadView("home");
+              });
+              brandLogo.dataset._bound = "1";
+            }
+
+            const navBrowsers = document.getElementById("navSwitchBrowsers");
+            if (navBrowsers && !navBrowsers.dataset._bound) {
+              navBrowsers.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.loadView("browsers");
+              });
+              navBrowsers.dataset._bound = "1";
+            }
+
+            const navScreens = document.getElementById("navSwitchScreens");
+            if (navScreens && !navScreens.dataset._bound) {
+              navScreens.addEventListener("click", (e) => {
+                e.preventDefault();
+                this.loadView("screens");
+              });
+              navScreens.dataset._bound = "1";
+            }
+          }, 100);
+        } catch (e) {
+          console.error("[VIEW] Error inicialitzant gestio:", e);
+        }
+
+        // Guardem instància amb destroy
+        if (!this.viewInstances.has("gestio")) {
+          this.viewInstances.set("gestio", {
+            destroy: async () => {
+              try {
+                const mod = await import("./gestio_ui.js");
+                mod.unmountGestioView?.();
               } catch (_) {}
             },
           });

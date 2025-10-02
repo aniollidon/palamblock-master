@@ -1,0 +1,284 @@
+<!-- Gestió d'Alumnes i Grups -->
+<div class="main-content">
+    <!-- Capçalera consistent amb altres vistes -->
+    <div class="pbk-header bg-dark border-bottom text-light">
+        <div class="d-flex justify-content-between align-items-center px-2 pt-2 pb-2 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <button id="brandLogoGestio" class="btn btn-link p-0 lh-0" title="Inici">
+                    <img src="images/palamblock-logo.png" alt="PalamBlock" class="brand-img" />
+                </button>
+                <div class="dropdown" data-bs-theme="dark">
+                    <button class="btn btn-sm btn-dark d-flex align-items-center gap-1" id="navViewDropdown"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="fw-bold">Gestió</span>
+                        <span class="caret">▾</span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" id="navSwitchBrowsers" data-nav="browsers">Navegadors</a>
+                        </li>
+                        <li><a class="dropdown-item" href="#" id="navSwitchScreens" data-nav="screens">Pantalles</a>
+                        </li>
+                        <li><span class="dropdown-item active">Gestió</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="gestio-container p-4">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">
+                    <i class="bi bi-gear-fill"></i>
+                    Gestió d'Alumnes i Grups
+                </h2>
+            </div>
+        </div>
+
+        <!-- Pestanyes -->
+        <ul class="nav nav-tabs mb-4" id="gestioTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="alumnes-tab" data-bs-toggle="tab" data-bs-target="#alumnes-pane"
+                    type="button" role="tab">
+                    <i class="bi bi-people-fill"></i> Alumnes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="grups-tab" data-bs-toggle="tab" data-bs-target="#grups-pane" type="button"
+                    role="tab">
+                    <i class="bi bi-diagram-3-fill"></i> Grups
+                </button>
+            </li>
+        </ul>
+
+        <!-- Contingut de les pestanyes -->
+        <div class="tab-content" id="gestioTabContent">
+            <!-- ============================================ -->
+            <!-- PESTANYA ALUMNES -->
+            <!-- ============================================ -->
+            <div class="tab-pane fade show active" id="alumnes-pane" role="tabpanel" tabindex="0">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <button class="btn btn-primary" id="btnNouAlumne">
+                            <i class="bi bi-person-plus-fill"></i> Nou Alumne
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtres -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Filtre per grup</label>
+                        <select class="form-select" id="filtreGrupAlumnes">
+                            <option value="">Tots els grups</option>
+                            <!-- Opcions dinàmiques -->
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Cerca</label>
+                        <input type="text" class="form-control" id="cercaAlumnes" placeholder="Nom, cognoms o ID..." />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Estat</label>
+                        <select class="form-select" id="filtreEstatAlumnes">
+                            <option value="">Tots</option>
+                            <option value="RuleOn">Normes activades</option>
+                            <option value="RuleOff">Normes desactivades</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Taula d'alumnes -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nom</th>
+                                <th>Cognoms</th>
+                                <th>Grup</th>
+                                <th>Estat</th>
+                                <th>Accions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taulaAlumnes">
+                            <!-- Contingut dinàmic -->
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    <i class="bi bi-hourglass-split"></i> Carregant alumnes...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- PESTANYA GRUPS -->
+            <!-- ============================================ -->
+            <div class="tab-pane fade" id="grups-pane" role="tabpanel" tabindex="0">
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <button class="btn btn-primary" id="btnNouGrup">
+                            <i class="bi bi-folder-plus"></i> Nou Grup
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtres -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Cerca</label>
+                        <input type="text" class="form-control" id="cercaGrups" placeholder="Nom o ID del grup..." />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Estat</label>
+                        <select class="form-select" id="filtreEstatGrups">
+                            <option value="">Tots</option>
+                            <option value="RuleOn">Normes activades</option>
+                            <option value="RuleOff">Normes desactivades</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Taula de grups -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nom</th>
+                                <th>Alumnes</th>
+                                <th>Estat</th>
+                                <th>Accions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taulaGrups">
+                            <!-- Contingut dinàmic -->
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    <i class="bi bi-hourglass-split"></i> Carregant grups...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: NOU/EDITAR ALUMNE -->
+    <!-- ============================================ -->
+    <div class="modal fade" id="modalAlumne" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlumneTitle">Nou Alumne</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAlumne">
+                        <input type="hidden" id="alumneMode" value="create" />
+                        <input type="hidden" id="alumneOriginalId" value="" />
+
+                        <div class="mb-3">
+                            <label for="alumneId" class="form-label">ID d'alumne <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="alumneId" required pattern="[-a-zA-Z0-9_]+"
+                                placeholder="ex: alumne01" />
+                            <div class="form-text">
+                                Només lletres, números, guions i guions baixos
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="alumneNom" class="form-label">Nom <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="alumneNom" required placeholder="Joan" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="alumneCognoms" class="form-label">Cognoms <span
+                                    class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="alumneCognoms" required
+                                placeholder="Garcia Pérez" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="alumneGrup" class="form-label">Grup <span class="text-danger">*</span></label>
+                            <select class="form-select" id="alumneGrup" required>
+                                <option value="">Selecciona un grup...</option>
+                                <!-- Opcions dinàmiques -->
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="alumneClau" class="form-label">Contrasenya <span class="text-danger"
+                                    id="clauRequired">*</span></label>
+                            <input type="password" class="form-control" id="alumneClau" minlength="4"
+                                placeholder="Mínim 4 caràcters" />
+                            <div class="form-text" id="clauHelp">
+                                En mode edició, deixa-ho en blanc si no vols canviar la contrasenya
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel·la
+                    </button>
+                    <button type="submit" form="formAlumne" class="btn btn-primary">
+                        Desa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- MODAL: NOU/EDITAR GRUP -->
+    <!-- ============================================ -->
+    <div class="modal fade" id="modalGrup" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalGrupTitle">Nou Grup</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formGrup">
+                        <input type="hidden" id="grupMode" value="create" />
+                        <input type="hidden" id="grupOriginalId" value="" />
+
+                        <div class="mb-3">
+                            <label for="grupId" class="form-label">ID de grup <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="grupId" required pattern="[-a-zA-Z0-9_]+"
+                                placeholder="ex: 1batx" />
+                            <div class="form-text">
+                                Només lletres, números, guions i guions baixos
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="grupNom" class="form-label">Nom descriptiu</label>
+                            <input type="text" class="form-control" id="grupNom" placeholder="1r Batxillerat" />
+                            <div class="form-text">
+                                Opcional. Si no s'especifica, s'utilitzarà l'ID com a nom
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel·la
+                    </button>
+                    <button type="submit" form="formGrup" class="btn btn-primary">
+                        Desa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div> <!-- .gestio-container -->
+</div> <!-- .main-content -->
