@@ -87,5 +87,5 @@ temp/
 # Eslint 
 .eslintrc.json
 
+# IMPORTANT: NO ignorar package-lock.json - necessari per GitHub Actions
 # package-lock.json
-package-lock.json
