@@ -645,6 +645,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   const searchClearBtn = document.createElement("button");
   searchClearBtn.setAttribute("class", "btn btn-outline-secondary");
   searchClearBtn.setAttribute("type", "button");
+  searchClearBtn.setAttribute("id", "pbk_normes_search_clear");
   searchClearBtn.textContent = "Neteja";
   searchRow.appendChild(searchInput);
   searchRow.appendChild(searchClearBtn);
