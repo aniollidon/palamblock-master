@@ -29,6 +29,7 @@ function createWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       preload: path.join(__dirname, "preload.js"),
+      webviewTag: true, // Permet fullscreen en webviews i iframes
       // Enable getDisplayMedia in Electron contexts
       // Note: handled via permission request below
     },
@@ -40,6 +41,13 @@ function createWindow() {
 
   // Carrega l'index.html
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
+
+  // Gestiona obertura de finestres noves (enllaços externs com ssh://)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Obre enllaços externs amb l'aplicació predeterminada del sistema
+    shell.openExternal(url);
+    return { action: "deny" }; // No obre una nova finestra d'Electron
+  });
 
   // Mostra la finestra quan estigui llesta
   mainWindow.once("ready-to-show", () => {
@@ -210,6 +218,21 @@ app.whenReady().then(() => {
           return callback(true);
         }
 
+        // Permet fullscreen
+        if (permission === "fullscreen") {
+          return callback(true);
+        }
+
+        // Permet clipboard
+        if (permission === "clipboard-sanitized-write") {
+          return callback(true);
+        }
+
+        // Permet openExternal
+        if (permission === "openExternal") {
+          return callback(true);
+        }
+
         // Per defecte denega
         return callback(false);
       }
@@ -221,6 +244,9 @@ app.whenReady().then(() => {
         (webContents, permission, requestingOrigin, details) => {
           if (permission === "display-capture") return true;
           if (permission === "media") return true;
+          if (permission === "fullscreen") return true;
+          if (permission === "clipboard-sanitized-write") return true;
+          if (permission === "openExternal") return true;
           return false;
         }
       );
@@ -228,6 +254,17 @@ app.whenReady().then(() => {
   } catch (e) {
     console.warn("No s'ha pogut establir els gestors de permisos:", e);
   }
+
+  // Ignora errors de certificats SSL en desenvolupament
+  // Això evita els errors SSL handshake failed
+  app.on(
+    "certificate-error",
+    (event, webContents, url, error, certificate, callback) => {
+      // Evita l'error de certificat
+      event.preventDefault();
+      callback(true);
+    }
+  );
 
   createWindow();
 });

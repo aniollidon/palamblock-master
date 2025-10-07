@@ -159,19 +159,26 @@ grupSelector.addEventListener("change", () => {
 
 // Toggle sidebar només si hi ha grup
 castButton.addEventListener("click", () => {
+  console.log("[CAST] Botó 'Emet al grup' clicat");
   // Mode grup: assegura que no estem en override
   overrideRoom = null;
   const dropdownWrapper = castStudentScreenDropdown?.parentElement;
   if (dropdownWrapper) dropdownWrapper.style.display = "";
   const grup = grupSelector.value;
-  if (!grup) return;
+  console.log("[CAST] Grup seleccionat:", grup);
+  if (!grup || grup === "Selecciona un grup") {
+    console.warn("[CAST] No hi ha grup seleccionat, sortint");
+    return;
+  }
   if (
     castSidebar.style.display !== "none" &&
     castSidebarContainer.style.display !== "none"
   ) {
+    console.log("[CAST] Tancant sidebar");
     hideSidebar();
     return;
   }
+  console.log("[CAST] Obrint sidebar per grup:", grup);
   showSidebar();
   castSidebarTitle.textContent = `Emet a ${grup}`;
 

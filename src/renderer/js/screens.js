@@ -252,6 +252,7 @@ function drawGridItem(alumne, maquina) {
   // Assigna href només si hi ha IP
   if (maquina && maquina.ip) {
     buttonSSH.setAttribute("href", `ssh://super@${maquina.ip}`);
+    buttonSSH.setAttribute("target", "_blank");
   } else {
     buttonSSH.classList.add("disabled");
     buttonSSH.setAttribute("aria-disabled", "true");
@@ -319,8 +320,70 @@ function drawGridItem(alumne, maquina) {
   iframe.style.backgroundSize = "contain";
   const overlay = document.createElement("div");
   overlay.classList.add("overlay");
+
+  // Variable per controlar si ja hi ha un listener actiu per l'overlay
+  let overlayFullscreenHandler = null;
+
   overlay.onclick = () => {
-    iframe.requestFullscreen();
+    // Elimina el listener anterior si existeix
+    if (overlayFullscreenHandler) {
+      document.removeEventListener(
+        "fullscreenchange",
+        overlayFullscreenHandler
+      );
+    }
+
+    iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&reconnect&name=${alumne}`;
+
+    // Prova diferents mètodes de fullscreen per compatibilitat amb Electron
+    const requestFullscreen =
+      iframe.requestFullscreen ||
+      iframe.webkitRequestFullscreen ||
+      iframe.mozRequestFullScreen ||
+      iframe.msRequestFullscreen;
+
+    if (requestFullscreen) {
+      requestFullscreen.call(iframe).catch((err) => {
+        console.error("Error en posar a pantalla completa:", err);
+      });
+    }
+
+    // Crea el nou handler
+    overlayFullscreenHandler = () => {
+      if (
+        !document.fullscreenElement &&
+        !document.webkitFullscreenElement &&
+        !document.mozFullScreenElement &&
+        !document.msFullscreenElement
+      ) {
+        iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
+        document.removeEventListener(
+          "fullscreenchange",
+          overlayFullscreenHandler
+        );
+        document.removeEventListener(
+          "webkitfullscreenchange",
+          overlayFullscreenHandler
+        );
+        document.removeEventListener(
+          "mozfullscreenchange",
+          overlayFullscreenHandler
+        );
+        document.removeEventListener(
+          "MSFullscreenChange",
+          overlayFullscreenHandler
+        );
+        overlayFullscreenHandler = null;
+      }
+    };
+
+    document.addEventListener("fullscreenchange", overlayFullscreenHandler);
+    document.addEventListener(
+      "webkitfullscreenchange",
+      overlayFullscreenHandler
+    );
+    document.addEventListener("mozfullscreenchange", overlayFullscreenHandler);
+    document.addEventListener("MSFullscreenChange", overlayFullscreenHandler);
   };
   gridItemContentScreen.appendChild(overlay);
   gridItemContentScreen.appendChild(iframe);

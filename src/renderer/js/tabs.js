@@ -477,8 +477,8 @@ let menuClickCoords = {};
 const openMenu = (e, options, info) => {
   e.preventDefault();
   const origin = {
-    left: e.pageX,
-    top: e.pageY,
+    left: e.clientX,
+    top: e.clientY,
   };
 
   if (
@@ -514,7 +514,7 @@ const openMenu = (e, options, info) => {
 const closeMenu = (e) => {
   if (e && e.preventDefault) e.preventDefault();
   if (e) {
-    const origin = { left: e.pageX, top: e.pageY };
+    const origin = { left: e.clientX, top: e.clientY };
     menuClickCoords = origin;
   } else {
     menuClickCoords = {};
@@ -540,7 +540,7 @@ const setPosition = ({ top, left, flipY, flipX }) => {
 };
 
 window.addEventListener("click", (e) => {
-  if (menuClickCoords.left === e.pageX && menuClickCoords.top === e.pageY)
+  if (menuClickCoords.left === e.clientX && menuClickCoords.top === e.clientY)
     return;
   toggleMenu("hide");
 });

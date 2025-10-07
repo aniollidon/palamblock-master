@@ -34,10 +34,23 @@ function safeModal(id) {
   }
 }
 
-const blockModalWeb = safeModal("bloquejaModalWeb");
-const normesModal = safeModal("normesModal");
-const llistaBlancaModal = safeModal("llistaBlancaModal");
-const debugModal = safeModal("debugModal");
+// Getters lazy per modals (es creen quan es necessiten)
+function getBlockModalWeb() {
+  return safeModal("bloquejaModalWeb");
+}
+
+function getNormesModal() {
+  return safeModal("normesModal");
+}
+
+function getLlistaBlancaModal() {
+  return safeModal("llistaBlancaModal");
+}
+
+function getDebugModal() {
+  return safeModal("debugModal");
+}
+
 let normesWebInfo = {};
 let llistaBlancaEnUs = {};
 
@@ -279,6 +292,7 @@ export function obreDialogBloquejaWeb(
   tab,
   menustate = undefined
 ) {
+  const blockModalWeb = getBlockModalWeb();
   grup = grup || "";
   alumne = alumne || "";
   const blocalumnLink = document.getElementById("pills-blocwebalumn-tab");
@@ -621,6 +635,7 @@ export function obreDialogBloquejaWeb(
 }
 
 export function obreDialogNormesWeb(whoid, who = "alumne") {
+  const normesModal = getNormesModal();
   const modalTitle = document.getElementById("pbk_modal_normes_title");
   const container = document.getElementById("pbk_modal_normes");
   const list = document.createElement("div");
@@ -965,6 +980,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
 }
 
 export function obreDialogAfegeixLlistaBlanca(grup) {
+  const llistaBlancaModal = getLlistaBlancaModal();
   document.getElementById("llb-nomgrup").innerHTML = grup;
 
   const weblistcontainer = document.getElementById("llb-weblist-container");
@@ -1184,6 +1200,7 @@ export function obreDialogAfegeixLlistaBlanca(grup) {
 }
 
 export function obreDialogDebug(alumne) {
+  const debugModal = getDebugModal();
   document.getElementById("debugIframe").src =
     "browser-test.html?alumn=" + alumne;
   debugModal.show();
