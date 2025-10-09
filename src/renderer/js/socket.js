@@ -93,6 +93,25 @@ function createSocket(serverUrl, credentials) {
     try {
       if (window.socket === socket) window.socket = null;
     } catch (_) {}
+
+    // Si la desconnexió no és voluntària (logout), mostra el login
+    if (reason !== "io client disconnect" && window.authManager) {
+      console.log(
+        "[SOCKET] Desconnexió no voluntària, mostrant pantalla d'autenticació"
+      );
+      window.authManager.isAuthenticated = false;
+      window.authManager.authToken = null;
+      try {
+        window.authManager.showLogin();
+        setTimeout(() => {
+          try {
+            window.authManager.showError?.(
+              "S'ha perdut la connexió amb el servidor. Torna a iniciar sessió."
+            );
+          } catch (_) {}
+        }, 30);
+      } catch (_) {}
+    }
   });
 
   // Si el servidor emet algun error d'autenticació explícit
@@ -152,9 +171,26 @@ function createSocket(serverUrl, credentials) {
       }
       return;
     }
-    // Altres errors de connexió: si no autenticat, mostra login
-    if (window.authManager && !window.authManager.isAuthenticated) {
-      window.authManager.showLogin();
+    // Altres errors de connexió: mostra login i desautentica
+    if (window.authManager) {
+      window.authManager.isAuthenticated = false;
+      window.authManager.authToken = null;
+      try {
+        socket.disconnect();
+      } catch (_) {}
+      try {
+        if (window.socket === socket) window.socket = null;
+      } catch (_) {}
+      try {
+        window.authManager.showLogin();
+        setTimeout(() => {
+          try {
+            window.authManager.showError?.(
+              "No s'ha pogut connectar amb el servidor. Verifica la configuració."
+            );
+          } catch (_) {}
+        }, 30);
+      } catch (_) {}
     }
   });
 

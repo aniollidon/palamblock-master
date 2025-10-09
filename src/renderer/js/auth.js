@@ -11,6 +11,9 @@ class AuthManager {
     // using OS keychain / encrypted storage in a future iteration.
     this.savedPlainPassword = null;
 
+    // AbortController per cancel·lar peticions en curs
+    this.currentAbortController = null;
+
     this.initializeAuth();
   }
 
@@ -186,6 +189,12 @@ class AuthManager {
       serverUrl = "http://" + serverUrl;
     }
 
+    // Cancel·la qualsevol petició anterior en curs
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+    }
+    this.currentAbortController = new AbortController();
+
     console.log(`🔗 [AUTH] Test connexió a: ${serverUrl}/api/v1/admin/login`);
     this.showSpinner("Provant connexió...");
 
@@ -197,6 +206,7 @@ class AuthManager {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ user: "", clauMd5: "" }),
+        signal: this.currentAbortController.signal,
       });
 
       console.log(`📊 [AUTH] Resposta test connexió:`, {
@@ -210,9 +220,16 @@ class AuthManager {
       this.hideSpinner();
       this.showSuccess(`Connexió OK - Servidor PalamSRV accessible`);
     } catch (error) {
+      // Si l'error és degut a cancel·lació, no mostrem missatge
+      if (error.name === "AbortError") {
+        console.log(`🚫 [AUTH] Petició de test connexió cancel·lada`);
+        return;
+      }
       console.error(`❌ [AUTH] Error test connexió:`, error);
       this.hideSpinner();
       this.showError(`Error de connexió: ${error.message}`);
+    } finally {
+      this.currentAbortController = null;
     }
   }
 
@@ -233,6 +250,12 @@ class AuthManager {
     if (!serverUrl.startsWith("http://") && !serverUrl.startsWith("https://")) {
       serverUrl = "http://" + serverUrl;
     }
+
+    // Cancel·la qualsevol petició anterior en curs
+    if (this.currentAbortController) {
+      this.currentAbortController.abort();
+    }
+    this.currentAbortController = new AbortController();
 
     console.log(`🔑 [AUTH] Intentant login a: ${serverUrl}/api/v1/admin/login`);
     console.log(`👤 [AUTH] Usuari: ${username}`);
@@ -260,6 +283,7 @@ class AuthManager {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(loginPayload),
+        signal: this.currentAbortController.signal,
       });
 
       console.log(`📊 [AUTH] Resposta login:`, {
@@ -329,9 +353,16 @@ class AuthManager {
         throw new Error(`HTTP ${response.status} ${response.statusText}`);
       }
     } catch (error) {
+      // Si l'error és degut a cancel·lació, no mostrem missatge
+      if (error.name === "AbortError") {
+        console.log(`🚫 [AUTH] Petició de login cancel·lada`);
+        return;
+      }
       console.error(`❌ [AUTH] Error login:`, error);
       this.hideSpinner();
       this.showError(`Error d'autenticació: ${error.message}`);
+    } finally {
+      this.currentAbortController = null;
     }
   }
 
@@ -444,14 +475,16 @@ class AuthManager {
     }
     spinner.classList.remove("d-none");
 
-    document.getElementById("loginBtn").disabled = true;
-    document.getElementById("testConnectionBtn").disabled = true;
+    // NO desactivem els botons - permetem reconectar mentre està carregant
+    // document.getElementById("loginBtn").disabled = true;
+    // document.getElementById("testConnectionBtn").disabled = true;
   }
 
   hideSpinner() {
     document.getElementById("loginSpinner").classList.add("d-none");
-    document.getElementById("loginBtn").disabled = false;
-    document.getElementById("testConnectionBtn").disabled = false;
+    // Com no els desactivem, tampoc cal reactivar-los
+    // document.getElementById("loginBtn").disabled = false;
+    // document.getElementById("testConnectionBtn").disabled = false;
   }
 
   showError(message) {

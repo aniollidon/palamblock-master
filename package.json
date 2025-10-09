@@ -1,6 +1,6 @@
 {
   "name": "palammaster",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "PalamMaster - Aplicació d'administració Electron per PalamBlock",
   "main": "src/main.js",
   "scripts": {
@@ -82,7 +82,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "PalamBlock",
-      "perMachine": false
+      "perMachine": false,
+      "artifactName": "PalamBlock-Setup.${ext}"
     },
     "linux": {
       "target": [
@@ -91,7 +92,12 @@
       ],
       "icon": "assets/palamblock-logo.png",
       "category": "Education",
-      "description": "Aplicació d'administració per PalamBlock"
+      "description": "Aplicació d'administració per PalamBlock",
+      "executableName": "palamblock",
+      "artifactName": "PalamBlock-${arch}.${ext}"
+    },
+    "deb": {
+      "packageName": "palamblock"
     },
     "mac": {
       "target": [
@@ -99,7 +105,14 @@
         "zip"
       ],
       "icon": "assets/palamblock-logo.icns",
-      "category": "public.app-category.education"
+      "category": "public.app-category.education",
+      "artifactName": "PalamBlock-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "PalamBlock.${ext}"
+    },
+    "portable": {
+      "artifactName": "PalamBlock-Portable.${ext}"
     }
   },
   "repository": {

@@ -32,8 +32,11 @@
         </button>
     </div>
     <div class="mt-5 small text-center">
-        <div id="homeUserInfo" class="text-muted mb-1">&nbsp;</div>
-        <a href="#" id="changeCredsLink" class="text-decoration-none">Canvia la sessió</a>
+        <div>
+            <span id="homeUserInfo" class="text-muted mb-1">&nbsp;</span>.
+            <a href="#" id="changeCredsLink" class="text-decoration-none">Canvia la sessió</a>
+        </div>
+        <div id="appVersion" class="text-muted mb-2" style="font-size: 0.6rem;">&nbsp;</div>
     </div>
 </div>
 
@@ -44,5 +47,17 @@
     if (isSuperUser()) {
         const gestioBtn = document.getElementById('gestioButton');
         if (gestioBtn) gestioBtn.style.display = '';
+    }
+
+    // Mostrar la versió de l'aplicació
+    if (window.electronAPI && window.electronAPI.getVersion) {
+        window.electronAPI.getVersion().then(version => {
+            const versionEl = document.getElementById('appVersion');
+            if (versionEl) {
+                versionEl.textContent = `v${version}`;
+            }
+        }).catch(err => {
+            console.error('[HOME] Error obtenint la versió:', err);
+        });
     }
 </script>

@@ -45,17 +45,45 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build-win
 
+      - name: Rename Windows artifacts
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          cd dist
+          # Els fitxers ja haurien de tenir els noms fixos gràcies a artifactName
+          # Però assegurem-nos que existeixen
+          ls -la
+          echo "Windows artifacts ready"
+
       - name: Build application (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build-linux
 
+      - name: Rename Linux artifacts
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cd dist
+          # Els fitxers ja haurien de tenir els noms fixos gràcies a artifactName
+          # Però assegurem-nos que existeixen
+          ls -la
+          echo "Linux artifacts ready"
+
       - name: Build application (macOS)
         if: matrix.os == 'macos-latest'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build-mac
+
+      - name: Rename macOS artifacts
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd dist
+          # Els fitxers ja haurien de tenir els noms fixos gràcies a artifactName
+          # Però assegurem-nos que existeixen
+          ls -la
+          echo "macOS artifacts ready"
 
       - name: Upload artifacts (Windows)
         if: matrix.os == 'windows-latest'
