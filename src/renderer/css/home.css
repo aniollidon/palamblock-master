@@ -14,3 +14,30 @@
 .home-title {
   letter-spacing: 1px;
 }
+
+/* Botó de comprovar actualitzacions */
+#checkUpdatesBtn {
+  transition: all 0.2s ease;
+  border-radius: 20px;
+  padding: 4px 12px;
+  min-width: 100px;
+}
+
+#checkUpdatesBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+#checkUpdatesBtn:active {
+  transform: translateY(0);
+}
+
+#checkUpdatesBtn svg {
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+#checkUpdatesBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

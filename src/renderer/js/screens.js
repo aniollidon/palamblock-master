@@ -1,4 +1,8 @@
 import { socket } from "./socket.js";
+import {
+  openCastSidebarForStudent,
+  updateCastStudentData,
+} from "./cast_sidebar.js";
 
 let grupAlumnesList = {};
 let alumnesMachines = {};
@@ -39,9 +43,7 @@ export function drawGridGrup_update(updatedData) {
   setAlumnesMachine(updatedData);
 
   // Actualitzar dropdown del cast sidebar després d'actualitzar les dades
-  if (window.updateCastStudentData) {
-    window.updateCastStudentData(grupAlumnesList, alumnesMachines);
-  }
+  updateCastStudentData(grupAlumnesList, alumnesMachines);
 }
 
 function drawGridItem(alumne, maquina) {
@@ -270,11 +272,7 @@ function drawGridItem(alumne, maquina) {
     <path fill-rule="evenodd" d="M7.646 4.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V14.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708z"/>
   </svg>`;
   buttonCastStudent.onclick = () => {
-    if (window.openCastSidebarForStudent) {
-      window.openCastSidebarForStudent(alumne);
-    } else {
-      showErrorToast("No s'ha carregat la funcionalitat d'emissió");
-    }
+    openCastSidebarForStudent(alumne);
   };
   dropdownItem5.appendChild(buttonCastStudent);
   dropdownMenu.appendChild(dropdownItem5);
@@ -481,24 +479,18 @@ export function preparaSelectorGrups() {
       }
     }
     // Actualitzar dropdown del cast sidebar quan canvia el grup
-    if (window.updateCastStudentData) {
-      window.updateCastStudentData(grupAlumnesList, alumnesMachines);
-    }
+    updateCastStudentData(grupAlumnesList, alumnesMachines);
   };
 }
 
 export function setAlumnesMachine(data) {
   alumnesMachines = data;
   // Actualitzar dades del cast sidebar si existeix
-  if (window.updateCastStudentData) {
-    window.updateCastStudentData(grupAlumnesList, alumnesMachines);
-  }
+  updateCastStudentData(grupAlumnesList, alumnesMachines);
 }
 
 export function setGrupAlumnesList(data) {
   grupAlumnesList = data;
   // Actualitzar dades del cast sidebar si existeix
-  if (window.updateCastStudentData) {
-    window.updateCastStudentData(grupAlumnesList, alumnesMachines);
-  }
+  updateCastStudentData(grupAlumnesList, alumnesMachines);
 }

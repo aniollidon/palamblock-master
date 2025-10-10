@@ -7,6 +7,7 @@ import {
 } from "./screens.js";
 import { socket, initializeSocket } from "./socket.js";
 import { on as storeOn, off as storeOff, requestInitialData } from "./store.js";
+import { initCastSidebarListeners } from "./cast_sidebar.js";
 
 let grups_disponibles = false;
 let maquines_disponibles = false;
@@ -56,6 +57,11 @@ export async function initScreensWiring() {
   // Dades inicials
   requestInitialData("screens-mount");
 
+  // Inicialitzar listeners de cast sidebar
+  setTimeout(() => {
+    initCastSidebarListeners();
+  }, 0);
+
   // Enllaç del dropdown per canviar a navegadors
   setTimeout(() => {
     const link = document.getElementById("navSwitchBrowsers");
@@ -75,6 +81,7 @@ if (document.getElementById("grid-container")) {
 }
 
 export function unmountScreensView() {
+  // Clean up store listeners
   for (const off of unsubscribers) {
     try {
       off();

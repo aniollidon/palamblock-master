@@ -339,16 +339,27 @@ autoUpdater.on("update-downloaded", (info) => {
 // IPC handlers per actualitzacions
 ipcMain.handle("check-for-updates", async () => {
   try {
+    log.info("Comprovant actualitzacions manualment...");
     const result = await autoUpdater.checkForUpdates();
+
+    if (!result) {
+      log.warn("checkForUpdates ha retornat null");
+      return {
+        success: false,
+        error: "No s'ha pogut connectar amb el servidor d'actualitzacions",
+      };
+    }
+
+    log.info("Resultat checkForUpdates:", result);
     return {
       success: true,
-      updateInfo: result.updateInfo,
+      updateInfo: result.updateInfo || result,
     };
   } catch (error) {
     log.error("Error comprovant actualitzacions:", error);
     return {
       success: false,
-      error: error.message,
+      error: error.message || "Error desconegut comprovant actualitzacions",
     };
   }
 });
