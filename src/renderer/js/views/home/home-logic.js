@@ -1,5 +1,5 @@
 // Home view - Gestió de la pàgina principal
-import { isSuperUser } from "./utils.js";
+import { isSuperUser } from "../../utils/validators.js";
 
 // Variables globals per al botó d'actualitzacions
 let currentVersion = "";

@@ -1,12 +1,14 @@
 /**
- * Gestio UI - Gestió de la interfície d'usuari
+ * Gestio View - Vista de gestió d'alumnes, grups i professors
  *
- * Aquest fitxer gestiona la UI de la vista del mode super:
+ * Aquesta vista gestiona la UI del mode super:
  * - Renderització de taules
  * - Gestió de modals
  * - Filtres i cerca
  * - Events dels botons
  */
+
+import * as GestioLogic from "./gestio-logic.js";
 
 // Variables globals
 let grupAlumnesData = {};
@@ -17,9 +19,40 @@ let modalProfessorInstance = null;
 let socketListener = null;
 let socketListenerAdmins = null;
 
+// Event handlers (per cleanup)
+const eventHandlers = {
+  nouAlumne: null,
+  nouGrup: null,
+  nouProfessor: null,
+  submitAlumne: null,
+  submitGrup: null,
+  submitProfessor: null,
+  cercaAlumnes: null,
+  filtreGrupAlumnes: null,
+  filtreEstatAlumnes: null,
+  cercaGrups: null,
+  filtreEstatGrups: null,
+  cercaProfessors: null,
+};
+
+// Exposar GestioAPI globalment per compatibilitat
+window.GestioAPI = GestioLogic;
+
 // ============================================
 // LIFECYCLE FUNCTIONS (per view-manager)
 // ============================================
+
+/**
+ * Inicialitza la vista de gestió
+ * @returns {object} - Objecte amb funció destroy
+ */
+export async function init() {
+  console.log("[GESTIO_VIEW] Inicialitzant vista de gestió...");
+
+  mountGestioView();
+
+  return { destroy: unmountGestioView };
+}
 
 export function mountGestioView() {
   // Només inicialitzar si estem a la vista del mode super
@@ -67,6 +100,71 @@ export function mountGestioView() {
 export function unmountGestioView() {
   console.log("Desmuntant Super Mode UI...");
 
+  // Netejar event listeners
+  const btnNouAlumne = document.getElementById("btnNouAlumne");
+  const btnNouGrup = document.getElementById("btnNouGrup");
+  const btnNouProfessor = document.getElementById("btnNouProfessor");
+  const formAlumne = document.getElementById("formAlumne");
+  const formGrup = document.getElementById("formGrup");
+  const formProfessor = document.getElementById("formProfessor");
+  const cercaAlumnes = document.getElementById("cercaAlumnes");
+  const filtreGrupAlumnes = document.getElementById("filtreGrupAlumnes");
+  const filtreEstatAlumnes = document.getElementById("filtreEstatAlumnes");
+  const cercaGrups = document.getElementById("cercaGrups");
+  const filtreEstatGrups = document.getElementById("filtreEstatGrups");
+  const cercaProfessors = document.getElementById("cercaProfessors");
+
+  if (btnNouAlumne && eventHandlers.nouAlumne) {
+    btnNouAlumne.removeEventListener("click", eventHandlers.nouAlumne);
+  }
+  if (btnNouGrup && eventHandlers.nouGrup) {
+    btnNouGrup.removeEventListener("click", eventHandlers.nouGrup);
+  }
+  if (btnNouProfessor && eventHandlers.nouProfessor) {
+    btnNouProfessor.removeEventListener("click", eventHandlers.nouProfessor);
+  }
+  if (formAlumne && eventHandlers.submitAlumne) {
+    formAlumne.removeEventListener("submit", eventHandlers.submitAlumne);
+  }
+  if (formGrup && eventHandlers.submitGrup) {
+    formGrup.removeEventListener("submit", eventHandlers.submitGrup);
+  }
+  if (formProfessor && eventHandlers.submitProfessor) {
+    formProfessor.removeEventListener("submit", eventHandlers.submitProfessor);
+  }
+  if (cercaAlumnes && eventHandlers.cercaAlumnes) {
+    cercaAlumnes.removeEventListener("input", eventHandlers.cercaAlumnes);
+  }
+  if (filtreGrupAlumnes && eventHandlers.filtreGrupAlumnes) {
+    filtreGrupAlumnes.removeEventListener(
+      "change",
+      eventHandlers.filtreGrupAlumnes
+    );
+  }
+  if (filtreEstatAlumnes && eventHandlers.filtreEstatAlumnes) {
+    filtreEstatAlumnes.removeEventListener(
+      "change",
+      eventHandlers.filtreEstatAlumnes
+    );
+  }
+  if (cercaGrups && eventHandlers.cercaGrups) {
+    cercaGrups.removeEventListener("input", eventHandlers.cercaGrups);
+  }
+  if (filtreEstatGrups && eventHandlers.filtreEstatGrups) {
+    filtreEstatGrups.removeEventListener(
+      "change",
+      eventHandlers.filtreEstatGrups
+    );
+  }
+  if (cercaProfessors && eventHandlers.cercaProfessors) {
+    cercaProfessors.removeEventListener("input", eventHandlers.cercaProfessors);
+  }
+
+  // Reset event handlers
+  Object.keys(eventHandlers).forEach((key) => {
+    eventHandlers[key] = null;
+  });
+
   // Netejar listeners del socket
   if (socketListener && window.socket) {
     window.socket.off("grupAlumnesList", socketListener);
@@ -113,48 +211,63 @@ export function unmountGestioView() {
  */
 function setupEventListeners() {
   // Botons de creació
+  eventHandlers.nouAlumne = obrirModalNouAlumne;
+  eventHandlers.nouGrup = obrirModalNouGrup;
+  eventHandlers.nouProfessor = nouProfessor;
+
   document
     .getElementById("btnNouAlumne")
-    ?.addEventListener("click", obrirModalNouAlumne);
+    ?.addEventListener("click", eventHandlers.nouAlumne);
   document
     .getElementById("btnNouGrup")
-    ?.addEventListener("click", obrirModalNouGrup);
+    ?.addEventListener("click", eventHandlers.nouGrup);
   document
     .getElementById("btnNouProfessor")
-    ?.addEventListener("click", nouProfessor);
+    ?.addEventListener("click", eventHandlers.nouProfessor);
 
   // Formularis
+  eventHandlers.submitAlumne = handleSubmitAlumne;
+  eventHandlers.submitGrup = handleSubmitGrup;
+  eventHandlers.submitProfessor = handleSubmitProfessor;
+
   document
     .getElementById("formAlumne")
-    ?.addEventListener("submit", handleSubmitAlumne);
+    ?.addEventListener("submit", eventHandlers.submitAlumne);
   document
     .getElementById("formGrup")
-    ?.addEventListener("submit", handleSubmitGrup);
+    ?.addEventListener("submit", eventHandlers.submitGrup);
   document
     .getElementById("formProfessor")
-    ?.addEventListener("submit", handleSubmitProfessor);
+    ?.addEventListener("submit", eventHandlers.submitProfessor);
 
   // Filtres i cerca
+  eventHandlers.cercaAlumnes = filtrarAlumnes;
+  eventHandlers.filtreGrupAlumnes = filtrarAlumnes;
+  eventHandlers.filtreEstatAlumnes = filtrarAlumnes;
+  eventHandlers.cercaGrups = filtrarGrups;
+  eventHandlers.filtreEstatGrups = filtrarGrups;
+  eventHandlers.cercaProfessors = renderitzarTaulaProfessors;
+
   document
     .getElementById("cercaAlumnes")
-    ?.addEventListener("input", filtrarAlumnes);
+    ?.addEventListener("input", eventHandlers.cercaAlumnes);
   document
     .getElementById("filtreGrupAlumnes")
-    ?.addEventListener("change", filtrarAlumnes);
+    ?.addEventListener("change", eventHandlers.filtreGrupAlumnes);
   document
     .getElementById("filtreEstatAlumnes")
-    ?.addEventListener("change", filtrarAlumnes);
+    ?.addEventListener("change", eventHandlers.filtreEstatAlumnes);
 
   document
     .getElementById("cercaGrups")
-    ?.addEventListener("input", filtrarGrups);
+    ?.addEventListener("input", eventHandlers.cercaGrups);
   document
     .getElementById("filtreEstatGrups")
-    ?.addEventListener("change", filtrarGrups);
+    ?.addEventListener("change", eventHandlers.filtreEstatGrups);
 
   document
     .getElementById("cercaProfessors")
-    ?.addEventListener("input", renderitzarTaulaProfessors);
+    ?.addEventListener("input", eventHandlers.cercaProfessors);
 
   // Listener per actualitzacions del socket
   if (window.socket) {

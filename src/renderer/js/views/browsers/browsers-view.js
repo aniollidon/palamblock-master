@@ -1,13 +1,22 @@
+/**
+ * Browsers View - Vista de gestió de navegadors dels alumnes
+ * Mostra l'activitat dels alumnes, historial web, estadístiques
+ */
+
 import {
   drawHistorialWeb,
   drawHistorialStats,
   drawHistorialHostsSortedByUsage,
-} from "./sidebar.js";
-import { drawAlumnesActivity, preparaAlumnesGrups } from "./browsers.js";
-import { setnormesWebInfo } from "./dialogs.js";
-import { warnNormesWeb } from "./warnings.js";
-import { initializeSocket } from "./socket.js";
-import { on as storeOn, off as storeOff, requestInitialData } from "./store.js";
+} from "./historial-view.js";
+import { drawAlumnesActivity, preparaAlumnesGrups } from "./browsers-logic.js";
+import { setnormesWebInfo } from "./normes-logic.js";
+import { warnNormesWeb } from "./warnings-view.js";
+import { initializeSocket } from "../../utils/socket.js";
+import {
+  on as storeOn,
+  off as storeOff,
+  requestInitialData,
+} from "../../core/store.js";
 
 // --- Debug util ---
 function debugLog(...args) {
@@ -23,10 +32,14 @@ function errorSendLog(e) {
   }).catch(() => {});*/ // Desactivat per evitar spam
 }
 
+// Estat local de la vista
 let unsubscribers = [];
 let grupsLoaded = false;
 let lastRefreshTs = 0;
 
+/**
+ * Subscriu als esdeveniments del store
+ */
 function subscribe() {
   unsubscribers.push(
     storeOn("alumnesActivity", (data) => {
@@ -38,6 +51,7 @@ function subscribe() {
       }
     })
   );
+
   unsubscribers.push(
     storeOn("grupAlumnesList", (data) => {
       grupsLoaded = true;
@@ -47,7 +61,9 @@ function subscribe() {
           grups: grups.length,
           sample: grups.slice(0, 5),
         });
-      } else debugLog("EVENT grupAlumnesList buit");
+      } else {
+        debugLog("EVENT grupAlumnesList buit");
+      }
       try {
         preparaAlumnesGrups(data);
       } catch (e) {
@@ -55,6 +71,7 @@ function subscribe() {
       }
     })
   );
+
   unsubscribers.push(
     storeOn("normesWeb", (data) => {
       debugLog(
@@ -69,12 +86,14 @@ function subscribe() {
       }
     })
   );
+
   unsubscribers.push(
     storeOn("historialWebAlumne", (data) => {
       debugLog(
         "EVENT historialWebAlumne",
         data?.alumne,
-        data?.historial?.length
+        data?.historial?.length,
+        data?.query
       );
       try {
         drawHistorialWeb(data.alumne, data.historial, data.query);
@@ -83,12 +102,13 @@ function subscribe() {
       }
     })
   );
+
   unsubscribers.push(
     storeOn("eachBrowserLastUsage", (data) => {
       debugLog(
         "EVENT eachBrowserLastUsage",
         data?.alumne,
-        data?.lastUsage && Object.keys(data.lastUsage).length
+        data?.lastUsage?.length
       );
       try {
         drawHistorialStats(data.alumne, data.lastUsage);
@@ -97,6 +117,7 @@ function subscribe() {
       }
     })
   );
+
   unsubscribers.push(
     storeOn("historialHostsSortedByUsage", (data) => {
       debugLog(
@@ -118,6 +139,9 @@ function subscribe() {
   );
 }
 
+/**
+ * Desubscriu de tots els esdeveniments
+ */
 function unsubscribe() {
   for (const off of unsubscribers) {
     try {
@@ -127,29 +151,59 @@ function unsubscribe() {
   unsubscribers = [];
 }
 
-window.__palamBrowsersViewStatus = {
-  loadedAt: new Date().toISOString(),
-  get grupsLoaded() {
-    return grupsLoaded;
-  },
-};
-window.forceBrowsersInitialData = () => requestInitialData("manual");
-debugLog("MÒDUL CARREGAT", {
-  hasSocket: !!window.socket,
-});
-// Lifecycle API
-export async function mountBrowsersView() {
+/**
+ * Inicialitza la vista de navegadors
+ * @returns {object} - Objecte amb funció destroy
+ */
+export async function init() {
+  debugLog("INICIALITZANT VISTA");
+
+  // Assegurar que el socket està inicialitzat
   await initializeSocket();
+
+  // Subscriure als esdeveniments del store
   subscribe();
-  // Demana dades inicials un cop per muntatge
+
+  // Sol·licitar dades inicials
   requestInitialData("browsers-mount");
+
+  // Exposar status global (per debugging)
+  window.__palamBrowsersViewStatus = {
+    loadedAt: new Date().toISOString(),
+    get grupsLoaded() {
+      return grupsLoaded;
+    },
+  };
+
+  // Exposar funció per forçar refresh (debugging)
+  window.forceBrowsersInitialData = () => requestInitialData("manual");
+
+  // Retornar objecte amb destroy
+  return { destroy };
 }
 
-export function unmountBrowsersView() {
+/**
+ * Destrueix la vista i neteja recursos
+ */
+export function destroy() {
+  debugLog("DESTRUINT VISTA");
+
+  // Desubscriure de tots els esdeveniments
   unsubscribe();
+
+  // Netejar variables globals
+  delete window.__palamBrowsersViewStatus;
+  delete window.forceBrowsersInitialData;
+
+  // Reset estat local
+  grupsLoaded = false;
+  lastRefreshTs = 0;
 }
 
-// Permet refrescar dades cada vegada que es torna a la vista (ignorant el flag)
+/**
+ * Permet refrescar dades cada vegada que es torna a la vista
+ * @param {string} reason - Raó del refresh
+ */
 export function refreshBrowsersData(reason = "view-reenter") {
   const now = Date.now();
   // Evita spam si es canvia molt ràpid (menys de 1200ms)
@@ -162,3 +216,7 @@ export function refreshBrowsersData(reason = "view-reenter") {
   debugLog("Refresh browsers data", { reason });
   requestInitialData("refresh");
 }
+
+// Compatibilitat amb API antiga (per si algun fitxer encara l'usa)
+export { init as mountBrowsersView };
+export { destroy as unmountBrowsersView };

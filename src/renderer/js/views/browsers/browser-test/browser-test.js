@@ -1,13 +1,17 @@
-import { safeURL } from "./utils.js";
+import { safeURL } from "../../../utils/validators.js";
 
 // If opened inside the admin modal iframe, inherit authManager from parent
 if (!window.authManager && window.parent && window.parent.authManager) {
   window.authManager = window.parent.authManager;
 }
 
-let idalumn = new URLSearchParams(window.location.search).get("alumn");
+const urlParams = new URLSearchParams(window.location.search);
+let idalumn = urlParams.get("alumn");
 idalumn = idalumn ? idalumn : "prova";
 document.getElementById(`alumne`).innerText = idalumn;
+
+// Obtenir URL si ve com a paràmetre
+const urlParam = urlParams.get("url");
 
 const search = document.getElementById(`search`);
 const title = document.getElementById(`title`);
@@ -41,45 +45,63 @@ function onAction(data) {
     check.classList.add("action-unknown");
   }
 }
+
+/**
+ * Valida una URL mitjançant l'API de validació
+ * @param {string} urlValue - URL a validar
+ */
+function validateURL(urlValue) {
+  if (!urlValue || urlValue.trim() === "") {
+    console.warn("[browser-test] URL buida, no es valida");
+    return;
+  }
+
+  onAction({ do: "" });
+  const url = safeURL(urlValue);
+  pbUrl.innerText = urlValue;
+  const baseUrl = window.authManager?.serverUrl || "";
+
+  if (!baseUrl) {
+    console.warn("[browser-test] serverUrl no definit encara");
+    return;
+  }
+
+  fetch(`${baseUrl}/api/v1/validacio/tab`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      host: url.host,
+      protocol: url.protocol,
+      search: url.search,
+      pathname: url.pathname,
+      title: "",
+      alumne: idalumn,
+      browser: "PalamBlock",
+      tabId: "0",
+      incognito: false,
+      favicon: "",
+      active: true,
+      audible: false,
+      silentQuery: true,
+      timestampQuery: specificTime,
+    }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      onAction(data);
+      console.log("[browser-test] Validació URL:", data);
+    })
+    .catch((error) => {
+      console.error("[browser-test] Error validant URL:", error);
+      onAction({ do: "unknown" });
+    });
+}
+
 search.addEventListener("keypress", (e) => {
   if (e.key === "Enter") {
-    onAction({ do: "" });
-    const url = safeURL(search.value);
-    pbUrl.innerText = search.value;
-    const baseUrl = window.authManager?.serverUrl || "";
-    if (!baseUrl) {
-      console.warn("[browser-test] serverUrl no definit encara");
-    }
-    fetch(`${baseUrl}/api/v1/validacio/tab`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        host: url.host,
-        protocol: url.protocol,
-        search: url.search,
-        pathname: url.pathname,
-        title: "",
-        alumne: idalumn,
-        browser: "PalamBlock",
-        tabId: "0",
-        incognito: false,
-        favicon: "",
-        active: true,
-        audible: false,
-        silentQuery: true,
-        timestampQuery: specificTime,
-      }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        onAction(data);
-        console.log("Success:", data);
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-      });
+    validateURL(search.value);
   }
 });
 
@@ -179,3 +201,20 @@ dtApply.addEventListener("click", () => {
 dtCancel.addEventListener("click", () => {
   dtPanel.style.display = "none";
 });
+
+// Si hi ha una URL com a paràmetre, carrega-la i valida-la automàticament
+if (urlParam) {
+  try {
+    const decodedUrl = decodeURIComponent(urlParam);
+    search.value = decodedUrl;
+
+    // Espera un moment per assegurar que authManager està disponible
+    setTimeout(() => {
+      console.log("[browser-test] Validant URL automàticament:", decodedUrl);
+      validateURL(decodedUrl);
+    }, 200);
+  } catch (e) {
+    console.error("[browser-test] Error descodificant URL:", e);
+    onAction({ do: "unknown" });
+  }
+}

@@ -1,6 +1,6 @@
-import { chromeTabsObjects } from "./browsers.js";
-import { creaWebMenuJSON } from "./dialogs.js";
-import { socket } from "./socket.js";
+import { chromeTabsObjects } from "./browsers-logic.js";
+import { creaWebMenuJSON } from "./normes-logic.js";
+import { socket } from "../../utils/socket.js";
 
 // Helper: emet l'esdeveniment quan el socket estigui llest
 function emitWhenReady(eventName, payload) {

@@ -5,11 +5,11 @@ import {
   obre_confirmacio,
   obreDialogBloquejaWeb,
   obreDialogDebug,
-} from "./dialogs.js";
-import { toogleSideBar } from "./sidebar.js";
-import { compareEqualTabs } from "./utils.js";
-import { socket } from "./socket.js";
-import { isSuperUser } from "./utils.js";
+} from "./normes-logic.js";
+import { toogleSideBar } from "./historial-view.js";
+import { compareEqualTabs } from "../../utils/validators.js";
+import { socket } from "../../utils/socket.js";
+import { isSuperUser } from "../../utils/validators.js";
 
 const storedAlumneInfo = {};
 let grupAlumnesList = {};
@@ -466,7 +466,7 @@ function drawBrowsersGrup(grup) {
   const grupScreensButton = document.getElementById("globalGroupScreensButton");
   if (grupScreensButton) {
     grupScreensButton.onclick = (ev) => {
-      window.location.href = "../screens?grup=" + grup;
+      window.viewManager.navigateTo("screens", { grup });
     };
   }
   // Prepara el botó de Normes Web de grup

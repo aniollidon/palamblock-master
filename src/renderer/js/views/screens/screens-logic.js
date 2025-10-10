@@ -1,8 +1,8 @@
-import { socket } from "./socket.js";
+import { socket } from "../../utils/socket.js";
 import {
   openCastSidebarForStudent,
   updateCastStudentData,
-} from "./cast_sidebar.js";
+} from "./cast-view.js";
 
 let grupAlumnesList = {};
 let alumnesMachines = {};
@@ -19,6 +19,76 @@ function compareMachines(m1, m2) {
   } catch (e) {
     return false;
   }
+}
+
+/**
+ * Gestiona el fullscreen d'un iframe amb cleanup automàtic
+ * @param {HTMLIFrameElement} iframe - L'iframe a posar en fullscreen
+ * @param {string} ip - IP de la màquina
+ * @param {string} alumne - Nom de l'alumne
+ * @param {boolean} allowEdit - Si true, permet edició en fullscreen (sense view=true)
+ * @returns {Object} Objecte amb funcions activate i cleanup
+ */
+function handleFullscreen(iframe, ip, alumne, allowEdit = false) {
+  let fullscreenHandler = null;
+
+  const cleanup = () => {
+    if (fullscreenHandler) {
+      document.removeEventListener("fullscreenchange", fullscreenHandler);
+      document.removeEventListener("webkitfullscreenchange", fullscreenHandler);
+      document.removeEventListener("mozfullscreenchange", fullscreenHandler);
+      document.removeEventListener("MSFullscreenChange", fullscreenHandler);
+      fullscreenHandler = null;
+    }
+  };
+
+  const activate = () => {
+    // Neteja listener anterior si existeix
+    cleanup();
+
+    // Canvia URL segons si permet edició o només visualització
+    if (allowEdit) {
+      // Mode edició: sense view=true (botó cursor)
+      iframe.src = `http://${ip}:6080/vnc_iframe.html?password=fpb123&reconnect&name=${alumne}`;
+    } else {
+      // Mode visualització: manté view=true (overlay)
+      iframe.src = `http://${ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
+    }
+
+    // Prova diferents mètodes de fullscreen per compatibilitat amb Electron
+    const requestFullscreen =
+      iframe.requestFullscreen ||
+      iframe.webkitRequestFullscreen ||
+      iframe.mozRequestFullScreen ||
+      iframe.msRequestFullscreen;
+
+    if (requestFullscreen) {
+      requestFullscreen.call(iframe).catch((err) => {
+        console.error("Error en posar a pantalla completa:", err);
+      });
+    }
+
+    // Crea el nou handler per tornar a mode view quan surt de fullscreen
+    fullscreenHandler = () => {
+      if (
+        !document.fullscreenElement &&
+        !document.webkitFullscreenElement &&
+        !document.mozFullScreenElement &&
+        !document.msFullscreenElement
+      ) {
+        iframe.src = `http://${ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
+        cleanup();
+      }
+    };
+
+    // Registra listeners per diferents APIs de fullscreen
+    document.addEventListener("fullscreenchange", fullscreenHandler);
+    document.addEventListener("webkitfullscreenchange", fullscreenHandler);
+    document.addEventListener("mozfullscreenchange", fullscreenHandler);
+    document.addEventListener("MSFullscreenChange", fullscreenHandler);
+  };
+
+  return { activate, cleanup };
 }
 
 export function drawGridGrup_update(updatedData) {
@@ -101,29 +171,7 @@ function drawGridItem(alumne, maquina) {
           <path d="M14.082 2.182a.5.5 0 0 1 .103.557L8.528 15.467a.5.5 0 0 1-.917-.007L5.57 10.694.803 8.652a.5.5 0 0 1-.006-.916l12.728-5.657a.5.5 0 0 1 .556.103zM2.25 8.184l3.897 1.67a.5.5 0 0 1 .262.263l1.67 3.897L12.743 3.52z"/>
         </svg>`;
 
-  // Variable per controlar si ja hi ha un listener actiu
-  let fullscreenHandler = null;
-
-  buttonCursor.onclick = () => {
-    // Elimina el listener anterior si existeix
-    if (fullscreenHandler) {
-      document.removeEventListener("fullscreenchange", fullscreenHandler);
-    }
-
-    iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&reconnect&name=${alumne}`;
-    iframe.requestFullscreen();
-
-    // Crea el nou handler
-    fullscreenHandler = () => {
-      if (!document.fullscreenElement) {
-        iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
-        document.removeEventListener("fullscreenchange", fullscreenHandler);
-        fullscreenHandler = null;
-      }
-    };
-
-    document.addEventListener("fullscreenchange", fullscreenHandler);
-  };
+  // El onclick s'assignarà després de crear l'iframe
   itemButtons.appendChild(buttonCursor);
 
   // Llista extra de botons
@@ -316,73 +364,29 @@ function drawGridItem(alumne, maquina) {
   iframe.style.backgroundPosition = "center";
   iframe.style.backgroundRepeat = "no-repeat";
   iframe.style.backgroundSize = "contain";
+
   const overlay = document.createElement("div");
   overlay.classList.add("overlay");
 
-  // Variable per controlar si ja hi ha un listener actiu per l'overlay
-  let overlayFullscreenHandler = null;
+  // Ara que tenim l'iframe creat, podem assignar els fullscreen managers
+  // Gestió de fullscreen amb edició permesa (allowEdit = true) per al botó cursor
+  const fullscreenManagerEdit = handleFullscreen(
+    iframe,
+    maquina.ip,
+    alumne,
+    true
+  );
+  buttonCursor.onclick = fullscreenManagerEdit.activate;
 
-  overlay.onclick = () => {
-    // Elimina el listener anterior si existeix
-    if (overlayFullscreenHandler) {
-      document.removeEventListener(
-        "fullscreenchange",
-        overlayFullscreenHandler
-      );
-    }
+  // Gestió de fullscreen només visualització (allowEdit = false) per a l'overlay
+  const fullscreenManagerView = handleFullscreen(
+    iframe,
+    maquina.ip,
+    alumne,
+    false
+  );
+  overlay.onclick = fullscreenManagerView.activate;
 
-    iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&reconnect&name=${alumne}`;
-
-    // Prova diferents mètodes de fullscreen per compatibilitat amb Electron
-    const requestFullscreen =
-      iframe.requestFullscreen ||
-      iframe.webkitRequestFullscreen ||
-      iframe.mozRequestFullScreen ||
-      iframe.msRequestFullscreen;
-
-    if (requestFullscreen) {
-      requestFullscreen.call(iframe).catch((err) => {
-        console.error("Error en posar a pantalla completa:", err);
-      });
-    }
-
-    // Crea el nou handler
-    overlayFullscreenHandler = () => {
-      if (
-        !document.fullscreenElement &&
-        !document.webkitFullscreenElement &&
-        !document.mozFullScreenElement &&
-        !document.msFullscreenElement
-      ) {
-        iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
-        document.removeEventListener(
-          "fullscreenchange",
-          overlayFullscreenHandler
-        );
-        document.removeEventListener(
-          "webkitfullscreenchange",
-          overlayFullscreenHandler
-        );
-        document.removeEventListener(
-          "mozfullscreenchange",
-          overlayFullscreenHandler
-        );
-        document.removeEventListener(
-          "MSFullscreenChange",
-          overlayFullscreenHandler
-        );
-        overlayFullscreenHandler = null;
-      }
-    };
-
-    document.addEventListener("fullscreenchange", overlayFullscreenHandler);
-    document.addEventListener(
-      "webkitfullscreenchange",
-      overlayFullscreenHandler
-    );
-    document.addEventListener("mozfullscreenchange", overlayFullscreenHandler);
-    document.addEventListener("MSFullscreenChange", overlayFullscreenHandler);
-  };
   gridItemContentScreen.appendChild(overlay);
   gridItemContentScreen.appendChild(iframe);
   gridItem.appendChild(gridItemContentScreen);

@@ -1,16 +1,20 @@
-import { getGrup, getAlumnes, getGrups } from "./browsers.js";
-import { socket } from "./socket.js";
+import { getGrup, getAlumnes, getGrups } from "./browsers-logic.js";
+import { socket } from "../../utils/socket.js";
 import {
   getIntervalHorari,
   safeURL,
-  hhmmToMinutes,
-  capitalizeFirstLetter,
   normaTempsActiva,
-  minutstoDDHHMM,
   reconstrueixDuradaOpcio,
-} from "./utils.js";
-import { moveHistorialSidebarToSearch } from "./sidebar.js";
-import { commonPlaces, googleServices, teacherHorari } from "./common.js";
+} from "../../utils/validators.js";
+import {
+  formatDate,
+  capitalizeFirstLetter,
+  hhmmToMinutes,
+  minutstoDDHHMM,
+} from "../../utils/formatters.js";
+import { showWarningToast, showErrorToast } from "../../utils/toast.js";
+import { moveHistorialSidebarToSearch } from "./historial-view.js";
+import { commonPlaces, googleServices, teacherHorari } from "../../common.js";
 
 // Helper per crear modals de forma segura (pot ser que el node encara no existeixi)
 function safeModal(id) {
@@ -160,6 +164,45 @@ export function creaWebMenuJSON(
     moveHistorialSidebarToSearch("host:" + info.webPage.host);
   };
 
+  const testejarUrl = (info) => {
+    const url =
+      (info?.webPage?.protocol || "https:") +
+      "//" +
+      (info?.webPage?.host || "") +
+      (info?.webPage?.pathname || "") +
+      (info?.webPage?.search || "");
+
+    console.log("[DIALOGS] Testejar URL:", url);
+
+    // Valida que la URL sigui correcta
+    if (
+      (!url.startsWith("https:") && !url.startsWith("http:")) ||
+      url === "https://" ||
+      url === "http://"
+    ) {
+      showErrorToast(
+        "No es pot testejar aquesta URL: " +
+          (info?.webPage?.title || "Sense títol")
+      );
+      console.error("[DIALOGS] URL no vàlida:", url);
+      return;
+    }
+
+    // Obre el modal de debug amb la URL
+    const debugModal = getDebugModal();
+    const debugIframe = document.getElementById("debugIframe");
+
+    if (debugIframe) {
+      // Passa la URL com a paràmetre al browser-test
+      const encodedUrl = encodeURIComponent(url);
+      debugIframe.src = `browser-test.html?alumn=${alumne}&url=${encodedUrl}`;
+      debugModal.show();
+    } else {
+      showErrorToast("No s'ha pogut obrir el testejador de URLs");
+      console.error("[DIALOGS] debugIframe no trobat");
+    }
+  };
+
   let menu = [{ text: "Obre web", do: obreUrl }];
 
   if (browser) {
@@ -190,6 +233,13 @@ export function creaWebMenuJSON(
       do: searchOnHistorial,
     });
   }
+
+  // Afegir opció de testejar URL (disponible sempre)
+  menu.push({
+    text: "Testejar URL",
+    do: testejarUrl,
+  });
+
   return menu;
 }
 

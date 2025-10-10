@@ -145,7 +145,7 @@
         </div>
     </div>
 
-    <!-- Boostrap JS -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
         integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
         crossorigin="anonymous"></script>
@@ -154,27 +154,16 @@
         crossorigin="anonymous"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="js/ext/bootbox.all.min.js"></script>
+
     <!-- Socket.io -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <!-- Admin socket manager: load early so auth can create the connection -->
-    <script type="module" src="js/socket.js"></script>
-    <!-- Chrome pbk-modal-tabs JS (si encara necessari) -->
-    <script src="https://unpkg.com/draggabilly@2.2.0/dist/draggabilly.pkgd.min.js"></script>
-    <script src="js/tabs.js"></script>
-    <!-- MD5 Library (needed for auth) -->
-    <script src="js/md5.js"></script>
-    <!-- Toast System (load early for global availability) -->
-    <script src="js/toast.js"></script>
-    <!-- Auth Manager -->
-    <script src="js/auth.js"></script>
-    <!-- Electron initialization -->
-    <script src="js/electron-init.js"></script>
-    <!-- View System CSS -->
-    <link href="css/views.css" rel="stylesheet">
-    <!-- View Manager -->
-    <script src="js/view-manager.js"></script>
 
-    <!-- NOTA: browsers_view.js es carrega dinàmicament quan s'invoca la vista 'browsers' -->
+    <!-- Chrome tabs (draggabilly per tabs) -->
+    <script src="https://unpkg.com/draggabilly@2.2.0/dist/draggabilly.pkgd.min.js"></script>
+    <script src="js/views/browsers/tabs.js"></script>
+
+    <!-- Punt d'entrada principal de l'aplicació (ESM) -->
+    <script type="module" src="js/main.js"></script>
 
 </body>
 
