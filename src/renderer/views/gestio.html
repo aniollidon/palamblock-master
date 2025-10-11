@@ -235,7 +235,7 @@
                         <div class="mb-3">
                             <label for="alumneId" class="form-label">ID d'alumne <span
                                     class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="alumneId" required pattern="[-a-zA-Z0-9_]+"
+                            <input type="text" class="form-control" id="alumneId" required pattern="[a-zA-Z0-9_\-]+"
                                 placeholder="ex: alumne01" />
                             <div class="form-text">
                                 Només lletres, números, guions i guions baixos
@@ -302,7 +302,7 @@
 
                         <div class="mb-3">
                             <label for="grupId" class="form-label">ID de grup <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="grupId" required pattern="[-a-zA-Z0-9_]+"
+                            <input type="text" class="form-control" id="grupId" required pattern="[a-zA-Z0-9_\-]+"
                                 placeholder="ex: 1batx" />
                             <div class="form-text">
                                 Només lletres, números, guions i guions baixos
@@ -347,8 +347,8 @@
                         <div class="mb-3">
                             <label for="professorUser" class="form-label">Usuari <span
                                     class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="professorUser" required pattern="[-a-zA-Z0-9_]+"
-                                placeholder="ex: professor01" />
+                            <input type="text" class="form-control" id="professorUser" required
+                                pattern="[a-zA-Z0-9_\-]+" placeholder="ex: professor01" />
                             <div class="form-text">
                                 Només lletres, números, guions i guions baixos
                             </div>

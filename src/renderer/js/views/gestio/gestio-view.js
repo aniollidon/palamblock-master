@@ -8,7 +8,8 @@
  * - Events dels botons
  */
 
-import * as GestioLogic from "./gestio-logic.js";
+// Importar gestio-logic.js per carregar window.GestioAPI
+import "./gestio-logic.js";
 import { getSocket } from "../../core/container-helpers.js";
 
 // Variables globals
@@ -36,8 +37,8 @@ const eventHandlers = {
   cercaProfessors: null,
 };
 
-// Exposar GestioAPI globalment per compatibilitat
-window.GestioAPI = GestioLogic;
+// NOTA: window.GestioAPI és definit per gestio-logic.js
+// No cal reassignar-lo aquí
 
 // ============================================
 // LIFECYCLE FUNCTIONS (per view-manager)

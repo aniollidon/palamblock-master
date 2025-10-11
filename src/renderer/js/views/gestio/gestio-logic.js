@@ -10,6 +10,7 @@
  */
 
 import { getSocket } from "../../core/container-helpers.js";
+import { showErrorToast } from "../../utils/toast.js";
 
 // ============================================
 // FUNCIONS AUXILIARS
