@@ -87,21 +87,12 @@ function bind() {
 
 /**
  * Enllaça el dropdown de navegació a navegadors
+ * NOTA: Ja no cal aquest codi - el ViewManager gestiona automàticament
+ * els clicks amb data-view-navigate
  */
 function bindNavigation() {
-  const link = document.getElementById("navSwitchBrowsers");
-  if (link && !boundElements.has(link)) {
-    const handleNavClick = (e) => {
-      e.preventDefault();
-      const viewManager =
-        window.app?.container?.get("viewManager") || window.viewManager;
-      if (viewManager) {
-        viewManager.navigateTo("browsers");
-      }
-    };
-    link.addEventListener("click", handleNavClick);
-    boundElements.set(link, { event: "click", handler: handleNavClick });
-  }
+  // Aquest codi ja no és necessari - mantenim la funció per compatibilitat
+  // El ViewManager captura automàticament els clicks amb [data-view-navigate]
 }
 
 /**

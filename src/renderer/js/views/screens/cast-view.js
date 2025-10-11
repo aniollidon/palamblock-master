@@ -84,18 +84,36 @@ document.addEventListener("DOMContentLoaded", () => {
 function showSidebar() {
   const castSidebarContainer = document.getElementById("castSidebarContainer");
   const castSidebar = document.getElementById("castSidebar");
+  const mainContent = document.querySelector(".main-content");
 
   if (castSidebarContainer && !castSidebarContainer.contains(castSidebar)) {
     castSidebarContainer.appendChild(castSidebar);
   }
   if (castSidebarContainer) castSidebarContainer.style.display = "block";
   if (castSidebar) castSidebar.style.display = "flex";
+
+  // Afegir classes per animació i desplaçament del contingut
+  if (castSidebar) {
+    castSidebar.classList.add("show");
+  }
+  if (mainContent) {
+    mainContent.classList.add("sidebar-open");
+  }
 }
 
 // Helper per amagar la sidebar
 function hideSidebar() {
   const castSidebar = document.getElementById("castSidebar");
   const castSidebarContainer = document.getElementById("castSidebarContainer");
+  const mainContent = document.querySelector(".main-content");
+
+  // Treure classes d'animació i desplaçament
+  if (castSidebar) {
+    castSidebar.classList.remove("show");
+  }
+  if (mainContent) {
+    mainContent.classList.remove("sidebar-open");
+  }
 
   if (castSidebar) castSidebar.style.display = "none";
   if (castSidebarContainer) castSidebarContainer.style.display = "none";

@@ -1,6 +1,7 @@
 <!-- Sidebar de Cast (paritat web) -->
 <div id="castSidebarContainer" class="sidebar-container" style="display:none;">
-    <div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-white sidebar sidebar-panel" id="castSidebar">
+    <div class="d-flex flex-column align-items-stretch flex-shrink-0 bg-white sidebar sidebar-panel sliding"
+        id="castSidebar">
         <div class="link-dark text-decoration-none border-bottom pt-3 sidebarContent">
             <div class="d-flex flex-shrink-0 px-3 justify-content-between align-items-center">
                 <span class="fs-5 fw-semibold" id="castSidebarTitle">Emet a</span>
@@ -116,7 +117,7 @@
     <div class="pbk-header bg-dark border-bottom text-light">
         <div class="d-flex justify-content-between align-items-center px-2 pt-2 pb-1 flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
-                <button id="brandLogoScreens" class="btn btn-link p-0 lh-0" title="Inici">
+                <button id="brandLogoScreens" class="btn btn-link p-0 lh-0" title="Inici" data-view-navigate="home">
                     <img src="images/palamblock-logo.png" alt="PalamBlock" class="brand-img" />
                 </button>
                 <div class="dropdown" data-bs-theme="dark">
@@ -126,7 +127,8 @@
                         <span class="caret">▾</span>
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" id="navSwitchBrowsers" data-nav="browsers">Navegadors</a>
+                        <li><a class="dropdown-item" href="#" id="navSwitchBrowsers"
+                                data-view-navigate="browsers">Navegadors</a>
                         </li>
                         <li><span class="dropdown-item active">Pantalles</span></li>
                     </ul>
