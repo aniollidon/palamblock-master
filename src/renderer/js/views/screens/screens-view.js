@@ -9,13 +9,13 @@ import {
   setAlumnesMachine,
   setGrupAlumnesList,
 } from "./screens-logic.js";
-import { socket, initializeSocket } from "../../utils/socket.js";
 import {
   on as storeOn,
   off as storeOff,
   requestInitialData,
 } from "../../core/store.js";
 import { initCastSidebarListeners } from "./cast-view.js";
+import { getSocket } from "../../core/container-helpers.js";
 
 // --- Debug util ---
 function debugLog(...args) {
@@ -32,7 +32,7 @@ let boundElements = new Map(); // Canviat a Map per guardar element -> handler
  * Assegura que el socket està inicialitzat
  */
 async function ensureSocket() {
-  return socket || (await initializeSocket());
+  return getSocket();
 }
 
 /**
@@ -93,8 +93,10 @@ function bindNavigation() {
   if (link && !boundElements.has(link)) {
     const handleNavClick = (e) => {
       e.preventDefault();
-      if (window.viewManager) {
-        window.viewManager.navigateTo("browsers");
+      const viewManager =
+        window.app?.container?.get("viewManager") || window.viewManager;
+      if (viewManager) {
+        viewManager.navigateTo("browsers");
       }
     };
     link.addEventListener("click", handleNavClick);

@@ -6,13 +6,16 @@ let castSocket = null;
 
 function initCastSocket() {
   if (castSocket) return castSocket;
-  if (!window.authManager || !window.authManager.isAuthenticated) {
+
+  const authManager =
+    window.app?.container?.get("authManager") || window.authManager;
+  if (!authManager || !authManager.isAuthenticated) {
     return null; // esperem autenticació
   }
   // Reutilitza mateix origen (assumim mateix host que admin) i envia query si hi ha token
   try {
-    const credentials = window.authManager.getCredentials();
-    const baseUrl = window.authManager.serverUrl || undefined;
+    const credentials = authManager.getCredentials();
+    const baseUrl = authManager.serverUrl || undefined;
     castSocket = io(baseUrl, {
       path: "/ws-cast",
       transports: ["websocket", "polling"],
@@ -360,7 +363,9 @@ export function initCastSidebarListeners() {
       }
       let secs = parseInt(castMessageTime?.value || "10", 10);
       if (isNaN(secs) || secs < 0) secs = 0;
-      const base = window.authManager?.serverUrl || "";
+      const authManager =
+        window.app?.container?.get("authManager") || window.authManager;
+      const base = authManager?.serverUrl || "";
       const url = `${base}/cast/misssatge.html?text=${encodeURIComponent(
         txt
       )}&temps=${secs}`;

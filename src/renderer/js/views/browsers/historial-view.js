@@ -1,11 +1,12 @@
 import { chromeTabsObjects } from "./browsers-logic.js";
 import { creaWebMenuJSON } from "./normes-logic.js";
-import { socket } from "../../utils/socket.js";
+import { getSocket } from "../../core/container-helpers.js";
 
 // Helper: emet l'esdeveniment quan el socket estigui llest
 function emitWhenReady(eventName, payload) {
   const attempt = () => {
     try {
+      const socket = getSocket();
       if (socket && socket.connected) {
         socket.emit(eventName, payload);
         return true;

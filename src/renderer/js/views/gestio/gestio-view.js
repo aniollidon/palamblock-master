@@ -9,6 +9,7 @@
  */
 
 import * as GestioLogic from "./gestio-logic.js";
+import { getSocket } from "../../core/container-helpers.js";
 
 // Variables globals
 let grupAlumnesData = {};
@@ -166,12 +167,13 @@ export function unmountGestioView() {
   });
 
   // Netejar listeners del socket
-  if (socketListener && window.socket) {
-    window.socket.off("grupAlumnesList", socketListener);
+  const socket = getSocket();
+  if (socketListener && socket) {
+    socket.off("grupAlumnesList", socketListener);
     socketListener = null;
   }
-  if (socketListenerAdmins && window.socket) {
-    window.socket.off("adminsList", socketListenerAdmins);
+  if (socketListenerAdmins && socket) {
+    socket.off("adminsList", socketListenerAdmins);
     socketListenerAdmins = null;
   }
 
@@ -270,20 +272,21 @@ function setupEventListeners() {
     ?.addEventListener("input", eventHandlers.cercaProfessors);
 
   // Listener per actualitzacions del socket
-  if (window.socket) {
+  const socket = getSocket();
+  if (socket) {
     socketListener = (grups) => {
       console.log("Rebudes dades actualitzades de grups i alumnes", grups);
       grupAlumnesData = grups;
       renderitzarTaules();
     };
-    window.socket.on("grupAlumnesList", socketListener);
+    socket.on("grupAlumnesList", socketListener);
 
     socketListenerAdmins = (admins) => {
       console.log("Rebudes dades actualitzades de professors", admins);
       professorsData = admins;
       renderitzarTaulaProfessors();
     };
-    window.socket.on("adminsList", socketListenerAdmins);
+    socket.on("adminsList", socketListenerAdmins);
   } else {
     console.warn("[GESTIO] Socket no disponible!");
   }
@@ -293,16 +296,18 @@ function setupEventListeners() {
  * Sol·licitar dades inicials
  */
 function requestInitialData() {
+  const socket = getSocket();
+
   console.log("[GESTIO] Demanant dades inicials...", {
-    socket: !!window.socket,
-    connected: window.socket?.connected,
+    socket: !!socket,
+    connected: socket?.connected,
   });
 
-  if (window.socket && window.socket.connected) {
+  if (socket && socket.connected) {
     console.log("[GESTIO] Emetent getGrupAlumnesList");
-    window.socket.emit("getGrupAlumnesList");
+    socket.emit("getGrupAlumnesList");
     console.log("[GESTIO] Emetent getAdminsList");
-    window.socket.emit("getAdminsList", (response) => {
+    socket.emit("getAdminsList", (response) => {
       if (response && response.status === "OK") {
         professorsData = response.data;
         renderitzarTaulaProfessors();
@@ -312,9 +317,7 @@ function requestInitialData() {
     console.warn("[GESTIO] Socket no connectat, reintentant en 2s...");
     setTimeout(requestInitialData, 2000);
   }
-}
-
-// ============================================
+} // ============================================
 // RENDERITZACIÓ DE TAULES
 // ============================================
 

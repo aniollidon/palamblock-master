@@ -1,5 +1,4 @@
-import { socket } from "../../utils/socket.js";
-import { normaTempsActiva } from "../../utils/validators.js";
+import { isValidEmail } from "../../utils/validators.js";
 
 export function warnNormesWeb(data) {
   const avisos = document.getElementById("avisos");

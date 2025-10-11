@@ -1,8 +1,8 @@
-import { socket } from "../../utils/socket.js";
 import {
   openCastSidebarForStudent,
   updateCastStudentData,
 } from "./cast-view.js";
+import { getSocket } from "../../core/container-helpers.js";
 
 let grupAlumnesList = {};
 let alumnesMachines = {};
@@ -143,7 +143,7 @@ function drawGridItem(alumne, maquina) {
                               <path d="M3 8.812a5 5 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812"/>
                             </svg>`;
   buttonOff.onclick = () => {
-    socket.emit("sendCommandToAlumne", {
+    getSocket()?.emit("sendCommandToAlumne", {
       alumne: alumne,
       command: "apaga-tot",
     });
@@ -221,10 +221,16 @@ function drawGridItem(alumne, maquina) {
   buttonFreeze.onclick = () => {
     const estat = buttonFreeze.getAttribute("data-estat");
     if (estat === "pausa") {
-      socket.emit("sendCommandToAlumne", { alumne: alumne, command: "pausa" });
+      getSocket()?.emit("sendCommandToAlumne", {
+        alumne: alumne,
+        command: "pausa",
+      });
       setButtonFreezeText("repren");
     } else {
-      socket.emit("sendCommandToAlumne", { alumne: alumne, command: "repren" });
+      getSocket()?.emit("sendCommandToAlumne", {
+        alumne: alumne,
+        command: "repren",
+      });
       setButtonFreezeText("pausa");
     }
   };
@@ -241,7 +247,7 @@ function drawGridItem(alumne, maquina) {
       <path fill-rule="evenodd" d="M7.646 4.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V14.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708z"/>
     </svg>`;
   buttonScript.onclick = () => {
-    socket.emit("sendCommandToAlumne", {
+    getSocket()?.emit("sendCommandToAlumne", {
       alumne: alumne,
       command: "actualitza",
     });

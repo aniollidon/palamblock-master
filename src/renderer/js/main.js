@@ -3,13 +3,84 @@
  * Inicialitza el ViewManager i gestiona l'estat global de l'aplicació
  */
 
+import { ServiceContainer } from "./core/service-container.js";
 import { ViewManager } from "./core/view-manager.js";
 import { AuthManager } from "./core/auth-manager.js";
-import { initializeSocket } from "./utils/socket.js";
+import { SocketManager } from "./core/socket.js";
+
+// Crear el Service Container global
+const container = new ServiceContainer();
+
+// Funció helper per emetre esdeveniments
+const emitEvent = (name, detail) => {
+  window.dispatchEvent(new CustomEvent(name, { detail }));
+};
+
+/**
+ * Registra tots els serveis al contenidor
+ */
+function registerServices() {
+  // Servei: electronAPI (wrapper per accedir a window.electronAPI)
+  container.register(
+    "electronAPI",
+    () => {
+      return window.electronAPI || {};
+    },
+    { singleton: true }
+  );
+
+  // Servei: EventEmitter
+  container.register("eventEmitter", () => emitEvent, { singleton: true });
+
+  // Servei: AuthManager
+  container.register(
+    "authManager",
+    (c) => {
+      return new AuthManager({
+        electronAPI: c.get("electronAPI"),
+        emitEvent: c.get("eventEmitter"),
+      });
+    },
+    { singleton: true, dependencies: ["electronAPI", "eventEmitter"] }
+  );
+
+  // Servei: SocketManager
+  container.register(
+    "socketManager",
+    (c) => {
+      const socketManager = new SocketManager({
+        authManager: c.get("authManager"),
+        emitEvent: c.get("eventEmitter"),
+      });
+
+      // Configurar la integració amb AuthManager
+      const authManager = c.get("authManager");
+      authManager.setSocketInitializer((serverUrl, credentials) => {
+        socketManager.updateSocketCredentials(serverUrl, credentials);
+      });
+
+      return socketManager;
+    },
+    { singleton: true, dependencies: ["authManager", "eventEmitter"] }
+  );
+
+  // Servei: ViewManager
+  container.register(
+    "viewManager",
+    (c) => {
+      return new ViewManager({
+        authManager: c.get("authManager"),
+        emitEvent: c.get("eventEmitter"),
+      });
+    },
+    { singleton: true, dependencies: ["authManager", "eventEmitter"] }
+  );
+}
 
 // Inicialització global
 let viewManager = null;
 let authManager = null;
+let socketManager = null;
 
 /**
  * Inicialitza l'aplicació quan el DOM estigui llest
@@ -18,22 +89,41 @@ async function initializeApp() {
   console.log("[MAIN] Inicialitzant PalamMaster...");
 
   try {
-    // 1. Crear gestor d'autenticació
-    authManager = new AuthManager();
-    window.authManager = authManager; // Exposar globalment per compatibilitat
+    // 1. Registrar tots els serveis
+    registerServices();
 
-    // 2. Crear gestor de vistes
-    viewManager = new ViewManager();
-    window.viewManager = viewManager; // Exposar globalment per compatibilitat
+    // 2. Obtenir serveis del contenidor
+    authManager = container.get("authManager");
+    viewManager = container.get("viewManager");
+    socketManager = container.get("socketManager");
 
-    // 3. Escoltar esdeveniments d'autenticació (ABANS d'inicialitzar)
+    // 3. Exposar globalment NOMÉS el contenidor (en lloc de cada servei)
+    window.app = {
+      container,
+      // Getters per accés ràpid (deprecated, usar container.get())
+      get authManager() {
+        return container.get("authManager");
+      },
+      get viewManager() {
+        return container.get("viewManager");
+      },
+      get socketManager() {
+        return container.get("socketManager");
+      },
+    };
+
+    // 4. També exposar individualment per compatibilitat legacy (DEPRECATED)
+    window.authManager = authManager;
+    window.viewManager = viewManager;
+
+    // 5. Escoltar esdeveniments d'autenticació
     window.addEventListener("auth:ready", handleAuthReady);
     window.addEventListener("auth:logout", handleLogout);
 
-    // 4. Inicialitzar autenticació (carrega credencials guardades)
+    // 6. Inicialitzar autenticació (carrega credencials guardades)
     await authManager.initialize();
 
-    // 5. Si ja estem autenticats, carregar vista home
+    // 7. Si ja estem autenticats, carregar vista home
     if (authManager.isAuthenticated) {
       const main =
         document.getElementById("appMain") || document.querySelector("main");
@@ -42,10 +132,14 @@ async function initializeApp() {
       }
     }
 
-    // 6. Gestió global d'errors
+    // 8. Gestió global d'errors
     setupGlobalErrorHandling();
 
     console.log("[MAIN] Aplicació inicialitzada correctament");
+    console.log(
+      "[MAIN] Serveis disponibles:",
+      container.getRegisteredServices()
+    );
   } catch (error) {
     console.error("[MAIN] Error inicialitzant aplicació:", error);
     showCriticalError(error);
@@ -61,8 +155,8 @@ async function handleAuthReady(event) {
   try {
     // Inicialitzar connexió socket amb les credencials
     const credentials = event.detail?.credentials;
-    if (credentials) {
-      await initializeSocket();
+    if (credentials && socketManager) {
+      await socketManager.initializeSocket();
     }
 
     // Carregar vista inicial només si el contenidor està buit

@@ -1,5 +1,4 @@
 import { getGrup, getAlumnes, getGrups } from "./browsers-logic.js";
-import { socket } from "../../utils/socket.js";
 import {
   getIntervalHorari,
   safeURL,
@@ -15,6 +14,7 @@ import {
 import { showWarningToast, showErrorToast } from "../../utils/toast.js";
 import { moveHistorialSidebarToSearch } from "./historial-view.js";
 import { commonPlaces, googleServices, teacherHorari } from "../../common.js";
+import { getSocket } from "../../core/container-helpers.js";
 
 // Helper per crear modals de forma segura (pot ser que el node encara no existeixi)
 function safeModal(id) {
@@ -153,7 +153,7 @@ export function creaWebMenuJSON(
   };
 
   const onTanca = (info) => {
-    socket.emit("closeTab", {
+    getSocket()?.emit("closeTab", {
       alumne: alumne,
       browser: browser,
       tabId: info.tabId,
@@ -661,14 +661,14 @@ export function obreDialogBloquejaWeb(
 
     obre_confirmacio(text_confirmacio, () => {
       if (menustate.editPrevious) {
-        socket.emit("removeNormaWeb", {
+        getSocket()?.emit("removeNormaWeb", {
           who: menustate.editPrevious.who,
           whoid: menustate.editPrevious.whoid,
           normaId: menustate.editPrevious.normaid,
         });
       }
 
-      socket.emit("addNormaWeb", {
+      getSocket()?.emit("addNormaWeb", {
         who: normaWhoSelection,
         whoid: normaWhoId,
         severity: severitySelect.value,
@@ -799,7 +799,11 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
           <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
         </svg>`;
     trash.onclick = (event) => {
-      socket.emit("removeNormaWeb", { normaId: norma, who: who, whoid: whoid });
+      getSocket()?.emit("removeNormaWeb", {
+        normaId: norma,
+        who: who,
+        whoid: whoid,
+      });
       normesWebInfo[whos][whoid][norma].removed = true;
       obreDialogNormesWeb(whoid, who);
     };
@@ -860,7 +864,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
 
     eyeopen.onclick = (event) => {
       normesWebInfo[whos][whoid][norma].alive = true;
-      socket.emit("updateNormaWeb", {
+      getSocket()?.emit("updateNormaWeb", {
         normaId: norma,
         who: who,
         whoid: whoid,
@@ -870,7 +874,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     };
     eyeclose.onclick = (event) => {
       normesWebInfo[whos][whoid][norma].alive = false;
-      socket.emit("updateNormaWeb", {
+      getSocket()?.emit("updateNormaWeb", {
         normaId: norma,
         who: who,
         whoid: whoid,
@@ -1231,7 +1235,7 @@ export function obreDialogAfegeixLlistaBlanca(grup) {
       "Segur que vols crear una llista blanca? La llista blanca bloqueja tot el tràfic que " +
         "no coincideix amb la norma. Si la durada no és la correcta pot interferir amb altres professors i assignatures. ",
       () => {
-        socket.emit("addNormaWeb", {
+        getSocket()?.emit("addNormaWeb", {
           //TODO
           who: "grup",
           whoid: grup,

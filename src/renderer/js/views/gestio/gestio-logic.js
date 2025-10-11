@@ -9,6 +9,8 @@
  * - Sistema de toasts (toast.js)
  */
 
+import { getSocket } from "../../core/container-helpers.js";
+
 // ============================================
 // FUNCIONS AUXILIARS
 // ============================================
@@ -21,12 +23,13 @@
  */
 function wsOperation(event, data) {
   return new Promise((resolve, reject) => {
-    if (!window.socket || !window.socket.connected) {
+    const socket = getSocket();
+    if (!socket || !socket.connected) {
       reject(new Error("Socket no connectat"));
       return;
     }
 
-    window.socket.emit(event, data, (response) => {
+    socket.emit(event, data, (response) => {
       if (response && response.status === "OK") {
         resolve(response.data);
       } else {

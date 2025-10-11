@@ -64,11 +64,14 @@ function updateUserInfo() {
   const userInfo = $("#homeUserInfo");
   if (!userInfo) return;
 
+  const authManager =
+    window.app?.container?.get("authManager") || window.authManager;
+
   if (
-    window.authManager?.isAuthenticated &&
-    window.authManager?.currentCredentials?.username
+    authManager?.isAuthenticated &&
+    authManager?.currentCredentials?.username
   ) {
-    userInfo.textContent = `Connectat com a ${window.authManager.currentCredentials.username}`;
+    userInfo.textContent = `Connectat com a ${authManager.currentCredentials.username}`;
   } else {
     userInfo.textContent = "No autenticat";
   }
@@ -78,7 +81,7 @@ function updateUserInfo() {
   if (changeCredsLink) {
     const removeListener = addListener(changeCredsLink, "click", (e) => {
       e.preventDefault();
-      window.authManager?.showLogin();
+      authManager?.showLogin();
     });
     cleanupFunctions.push(removeListener);
   }

@@ -1,8 +1,11 @@
 import { safeURL } from "../../../utils/validators.js";
 
 // If opened inside the admin modal iframe, inherit authManager from parent
-if (!window.authManager && window.parent && window.parent.authManager) {
-  window.authManager = window.parent.authManager;
+const parentAuthManager =
+  window.parent?.app?.container?.get("authManager") ||
+  window.parent?.authManager;
+if (!window.authManager && parentAuthManager) {
+  window.authManager = parentAuthManager;
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -59,7 +62,9 @@ function validateURL(urlValue) {
   onAction({ do: "" });
   const url = safeURL(urlValue);
   pbUrl.innerText = urlValue;
-  const baseUrl = window.authManager?.serverUrl || "";
+  const authManager =
+    window.app?.container?.get("authManager") || window.authManager;
+  const baseUrl = authManager?.serverUrl || "";
 
   if (!baseUrl) {
     console.warn("[browser-test] serverUrl no definit encara");
@@ -109,7 +114,9 @@ title.addEventListener("keypress", (e) => {
   onAction({ do: "" });
   if (e.key === "Enter") {
     pbUrl.innerText = "La pàgina amb títol <<" + title.value + ">>";
-    const baseUrl2 = window.authManager?.serverUrl || "";
+    const authManager =
+      window.app?.container?.get("authManager") || window.authManager;
+    const baseUrl2 = authManager?.serverUrl || "";
     if (!baseUrl2) {
       console.warn("[browser-test] serverUrl no definit encara");
     }

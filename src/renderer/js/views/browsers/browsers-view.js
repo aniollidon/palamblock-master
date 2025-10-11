@@ -11,13 +11,12 @@ import {
 import { drawAlumnesActivity, preparaAlumnesGrups } from "./browsers-logic.js";
 import { setnormesWebInfo } from "./normes-logic.js";
 import { warnNormesWeb } from "./warnings-view.js";
-import { initializeSocket } from "../../utils/socket.js";
 import {
   on as storeOn,
   off as storeOff,
   requestInitialData,
 } from "../../core/store.js";
-
+import { getSocket } from "../../core/container-helpers.js";
 // --- Debug util ---
 function debugLog(...args) {
   console.log("%c[BROWSERS_VIEW]", "color:#8a2be2;font-weight:bold", ...args);
@@ -158,8 +157,13 @@ function unsubscribe() {
 export async function init() {
   debugLog("INICIALITZANT VISTA");
 
-  // Assegurar que el socket està inicialitzat
-  await initializeSocket();
+  // El socket ja està inicialitzat pel ServiceContainer
+  // No cal fer res, només assegurar que existeix
+  const socket = getSocket();
+  if (!socket) {
+    console.warn("[BROWSERS-VIEW] Socket no disponible");
+    return;
+  }
 
   // Subscriure als esdeveniments del store
   subscribe();

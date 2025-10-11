@@ -6,7 +6,12 @@
 import { md5 } from "../utils/md5.js";
 
 export class AuthManager {
-  constructor() {
+  /**
+   * @param {Object} dependencies - Dependències injectades
+   * @param {Object} dependencies.electronAPI - API d'Electron exposada via preload
+   * @param {Function} dependencies.emitEvent - Funció per emetre esdeveniments globals
+   */
+  constructor(dependencies = {}) {
     this.isAuthenticated = false;
     this.currentCredentials = null;
     this.serverUrl = null;
@@ -16,6 +21,14 @@ export class AuthManager {
     // Modal elements (lazy loaded)
     this._modal = null;
     this._modalInstance = null;
+
+    // Dependències injectades
+    this.electronAPI = dependencies.electronAPI || window.electronAPI;
+    this.emitEvent =
+      dependencies.emitEvent ||
+      ((name, detail) => {
+        window.dispatchEvent(new CustomEvent(name, { detail }));
+      });
   }
 
   /**
@@ -43,13 +56,13 @@ export class AuthManager {
    */
   async loadSavedCredentials() {
     try {
-      if (!window.electronAPI?.getConfig) {
+      if (!this.electronAPI?.getConfig) {
         console.log("[AUTH] API de configuració no disponible");
         this.setDefaultValues();
         return false;
       }
 
-      const config = await window.electronAPI.getConfig();
+      const config = await this.electronAPI.getConfig();
 
       if (config?.authentication && config?.server) {
         this.serverUrl = config.server.url;
@@ -316,7 +329,7 @@ export class AuthManager {
    * Guarda les credencials a la configuració
    */
   async saveCredentials(password = null) {
-    if (!window.electronAPI?.setConfig) {
+    if (!this.electronAPI?.setConfig) {
       console.warn(
         "[AUTH] No es poden guardar credencials (API no disponible)"
       );
@@ -337,7 +350,7 @@ export class AuthManager {
         config.authentication.passwordEnc = btoa(password);
       }
 
-      await window.electronAPI.setConfig(config);
+      await this.electronAPI.setConfig(config);
       console.log("[AUTH] Credencials guardades");
     } catch (error) {
       console.error("[AUTH] Error guardant credencials:", error);
@@ -355,21 +368,15 @@ export class AuthManager {
     this.currentCredentials = null;
 
     // Netejar configuració
-    if (window.electronAPI?.setConfig) {
-      await window.electronAPI.setConfig({
+    if (this.electronAPI?.setConfig) {
+      await this.electronAPI.setConfig({
         server: { url: this.serverUrl },
         authentication: {},
       });
     }
 
-    // Desconnectar socket
-    if (window.socket) {
-      window.socket.disconnect();
-      window.socket = null;
-    }
-
-    // Emetre esdeveniment
-    window.dispatchEvent(new CustomEvent("auth:logout"));
+    // Emetre esdeveniment de logout
+    this.emitEvent("auth:logout");
 
     // Mostrar login
     this.showLogin();
@@ -379,20 +386,24 @@ export class AuthManager {
    * Emet l'esdeveniment d'autenticació completada
    */
   emitAuthReady() {
-    window.dispatchEvent(
-      new CustomEvent("auth:ready", {
-        detail: { credentials: this.getCredentials() },
-      })
-    );
+    this.emitEvent("auth:ready", { credentials: this.getCredentials() });
+  }
+
+  /**
+   * Inicialitza la connexió socket (serà injectat externament)
+   * @param {Function} socketInitializer - Funció per inicialitzar el socket
+   */
+  setSocketInitializer(socketInitializer) {
+    this.socketInitializer = socketInitializer;
   }
 
   /**
    * Inicialitza la connexió socket
    */
   initializeSocketConnection() {
-    if (window.updateSocketCredentials) {
+    if (this.socketInitializer) {
       setTimeout(() => {
-        window.updateSocketCredentials(this.serverUrl, this.currentCredentials);
+        this.socketInitializer(this.serverUrl, this.currentCredentials);
       }, 100);
     }
   }

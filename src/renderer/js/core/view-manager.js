@@ -3,10 +3,23 @@
  * Gestiona la navegació, lifecycle (init/destroy) i transicions entre vistes
  */
 export class ViewManager {
-  constructor() {
+  /**
+   * @param {Object} dependencies - Dependències injectades
+   * @param {Object} dependencies.authManager - Gestor d'autenticació
+   * @param {Function} dependencies.emitEvent - Funció per emetre esdeveniments globals
+   */
+  constructor(dependencies = {}) {
     this.currentView = null;
     this.currentInstance = null;
     this.viewInstances = new Map();
+
+    // Dependències injectades
+    this.authManager = dependencies.authManager;
+    this.emitEvent =
+      dependencies.emitEvent ||
+      ((name, detail) => {
+        window.dispatchEvent(new CustomEvent(name, { detail }));
+      });
 
     // Configuració de vistes disponibles
     this.views = {
@@ -84,11 +97,7 @@ export class ViewManager {
       this.currentView = viewName;
 
       // 7. Emetre esdeveniment de canvi de vista
-      window.dispatchEvent(
-        new CustomEvent("view:changed", {
-          detail: { view: viewName, options },
-        })
-      );
+      this.emitEvent("view:changed", { view: viewName, options });
 
       console.log(`[VIEW] Vista '${viewName}' carregada correctament`);
     } catch (error) {
@@ -159,10 +168,9 @@ export class ViewManager {
     const userInfoElement = document.getElementById("userInfo");
     if (!userInfoElement) return;
 
-    const userData = window.electronAPI?.getUserData?.();
-    if (userData) {
+    if (this.authManager?.currentCredentials?.username) {
       userInfoElement.textContent = `Usuari: ${
-        userData.username || "Administrador"
+        this.authManager.currentCredentials.username || "Administrador"
       }`;
     }
   }

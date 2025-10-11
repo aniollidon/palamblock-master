@@ -8,7 +8,6 @@ import {
 } from "./normes-logic.js";
 import { toogleSideBar } from "./historial-view.js";
 import { compareEqualTabs } from "../../utils/validators.js";
-import { socket } from "../../utils/socket.js";
 import { isSuperUser } from "../../utils/validators.js";
 
 const storedAlumneInfo = {};
@@ -466,7 +465,9 @@ function drawBrowsersGrup(grup) {
   const grupScreensButton = document.getElementById("globalGroupScreensButton");
   if (grupScreensButton) {
     grupScreensButton.onclick = (ev) => {
-      window.viewManager.navigateTo("screens", { grup });
+      const viewManager =
+        window.app?.container?.get("viewManager") || window.viewManager;
+      viewManager.navigateTo("screens", { grup });
     };
   }
   // Prepara el botó de Normes Web de grup
