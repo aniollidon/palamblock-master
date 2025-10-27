@@ -1,6 +1,6 @@
 {
   "name": "palammaster",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "PalamMaster - Aplicació d'administració Electron per PalamBlock",
   "main": "src/main.js",
   "scripts": {
