@@ -3,7 +3,7 @@
  * Centralitza la creació, configuració i gestió del socket.io
  */
 
-import { attachAdminSocket } from "./store.js";
+import { attachAdminSocket, requestInitialData } from "./store.js";
 
 /**
  * SocketManager - Gestiona les connexions socket amb dependency injection
@@ -101,6 +101,13 @@ export class SocketManager {
         attachAdminSocket(this.socket);
       } catch (error) {
         console.warn("[SOCKET] Error adjuntant socket al store:", error);
+      }
+
+      // Demanar el paquet inicial immediatament després d'adjuntar el socket al store
+      try {
+        requestInitialData("socket:connect");
+      } catch (error) {
+        console.warn("[SOCKET] Error sol·licitant dades inicials:", error);
       }
 
       // Emetre esdeveniment
