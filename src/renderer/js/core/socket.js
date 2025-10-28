@@ -3,7 +3,7 @@
  * Centralitza la creació, configuració i gestió del socket.io
  */
 
-import { attachAdminSocket, requestInitialData } from "./store.js";
+import { attachAdminSocket, requestInitialData, getState } from "./store.js";
 
 /**
  * SocketManager - Gestiona les connexions socket amb dependency injection
@@ -109,6 +109,24 @@ export class SocketManager {
       } catch (error) {
         console.warn("[SOCKET] Error sol·licitant dades inicials:", error);
       }
+
+      // Fallback: si en un curt període no hem rebut grups, tornar a demanar
+      setTimeout(() => {
+        try {
+          const state = getState();
+          const grupsCount = state?.grupAlumnesList
+            ? Object.keys(state.grupAlumnesList).length
+            : 0;
+          if (!grupsCount && this.socket?.connected) {
+            console.log(
+              "[SOCKET] Fallback: re-sol·licitant dades inicials (no s'han rebut grups)"
+            );
+            requestInitialData("socket:connect-fallback");
+          }
+        } catch (e) {
+          console.warn("[SOCKET] Error al comprovar fallback de dades:", e);
+        }
+      }, 800);
 
       // Emetre esdeveniment
       this.emitEvent("socket:ready", { socket: this.socket });
