@@ -577,7 +577,7 @@ export function openCastSidebarForStudent(alumne) {
     castSidebarContainer && castSidebarContainer.style.display !== "none";
 
   if (!isOpen) {
-    toggleSidebar();
+    showSidebar();
   }
 
   // Actualitzar títol sempre

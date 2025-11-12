@@ -137,15 +137,12 @@ export class AuthManager {
     }
 
     console.log(
-      `[AUTH] Assumint token vàlid per ${this.currentCredentials.username}`
+      `[AUTH] Validant token per ${this.currentCredentials.username}`
     );
 
-    // Marcar com autenticat
+    // Marcar com autenticat (si el socket falla, ja ho gestionarà ell)
     this.isAuthenticated = true;
     this.authToken = this.currentCredentials.token;
-
-    // Emetre esdeveniment d'autenticació
-    this.emitAuthReady();
 
     // Inicialitzar socket
     this.initializeSocketConnection();
@@ -172,6 +169,31 @@ export class AuthManager {
         this.testConnection();
       });
     }
+
+    // Tancar modal quan el socket es connecti
+    window.addEventListener("socket:ready", () => {
+      if (this.isAuthenticated) {
+        this.hideLogin();
+        this.showLoginSpinner(false);
+        this.emitAuthReady();
+      }
+    });
+
+    // Mostrar error si el socket falla autenticació
+    window.addEventListener("socket:auth-error", (event) => {
+      // Invalidar credencials
+      this.isAuthenticated = false;
+      this.authToken = null;
+
+      // Obrir modal si no està obert
+      this.showLogin();
+      this.showLoginSpinner(false);
+
+      // Mostrar error
+      this.showLoginError(
+        event.detail?.error || "Error d'autenticació amb el servidor"
+      );
+    });
   }
 
   /**
@@ -262,17 +284,14 @@ export class AuthManager {
       // Persistir configuració
       await this.saveCredentials(rememberCredentials ? password : null);
 
-      // Amagar modal i emetre esdeveniment
-      this.hideLogin();
-      this.showLoginSpinner(false);
-      this.emitAuthReady();
-
-      // Inicialitzar socket
+      // Inicialitzar socket (async, no esperem)
       this.initializeSocketConnection();
 
-      console.log("[AUTH] Login exitós");
+      // El modal es tancarà quan el socket es connecti (veure setupSocketListeners)
+      console.log("[AUTH] Login exitós, esperant connexió socket...");
     } catch (error) {
       console.error("[AUTH] Error en login:", error);
+      this.showLoginSpinner(false);
 
       if (error.name === "AbortError") {
         return; // Petició cancel·lada
@@ -402,9 +421,7 @@ export class AuthManager {
    */
   initializeSocketConnection() {
     if (this.socketInitializer) {
-      setTimeout(() => {
-        this.socketInitializer(this.serverUrl, this.currentCredentials);
-      }, 100);
+      this.socketInitializer(this.serverUrl, this.currentCredentials);
     }
   }
 

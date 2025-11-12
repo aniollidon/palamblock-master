@@ -153,11 +153,8 @@ async function handleAuthReady(event) {
   console.log("[MAIN] Autenticació completada");
 
   try {
-    // Inicialitzar connexió socket amb les credencials
-    const credentials = event.detail?.credentials;
-    if (credentials && socketManager) {
-      await socketManager.initializeSocket();
-    }
+    // El socket ja s'ha inicialitzat des d'AuthManager.initializeSocketConnectionWithValidation()
+    // NO cal tornar-lo a inicialitzar aquí per evitar connexions duplicades
 
     // Carregar vista inicial només si el contenidor està buit
     const main =

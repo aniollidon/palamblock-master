@@ -61,15 +61,19 @@ export class SocketManager {
     this.currentServerUrl = serverUrl;
     this.currentCredentials = credentials;
 
+    const socketQuery = {
+      user: credentials.username,
+      authToken: credentials.token,
+    };
+
     console.log(
-      `[SOCKET] Creant connexió a ${serverUrl} (usuari: ${credentials.username})`
+      `[SOCKET] Creant connexió a ${serverUrl}`,
+      `\n  Usuari: ${socketQuery.user}`,
+      `\n  Token: ${socketQuery.authToken}`
     );
 
     this.socket = io(serverUrl, {
-      query: {
-        user: credentials.username,
-        authToken: credentials.token,
-      },
+      query: socketQuery,
       path: "/ws-admin",
       transports: ["websocket", "polling"],
       timeout: 10000,
@@ -155,6 +159,8 @@ export class SocketManager {
         /autenticaci[oó]n? fallida/i.test(message) || /auth/i.test(message);
 
       if (isAuthError) {
+        // Emetre esdeveniment per notificar error d'auth
+        this.emitEvent("socket:auth-error", { error: message });
         this.handleAuthError("Autenticació fallida. Torna a iniciar sessió.");
       }
     });
@@ -169,6 +175,8 @@ export class SocketManager {
         /autenticaci[oó]n? fallida/i.test(message) || /auth/i.test(message);
 
       if (isAuthError) {
+        // Emetre esdeveniment per notificar error d'auth
+        this.emitEvent("socket:auth-error", { error: message });
         this.handleAuthError("Autenticació fallida. Torna a iniciar sessió.");
       } else {
         this.handleConnectionError(
@@ -182,25 +190,13 @@ export class SocketManager {
    * Gestiona una desconnexió inesperada
    */
   handleUnexpectedDisconnect() {
-    console.log(
-      "[SOCKET] Desconnexió inesperada, mostrant pantalla d'autenticació"
-    );
+    console.warn("[SOCKET] Desconnexió inesperada del servidor");
 
-    if (!this.authManager) return;
-
-    this.authManager.isAuthenticated = false;
-    this.authManager.authToken = null;
-    this.authManager.showLogin();
-
-    setTimeout(() => {
-      try {
-        this.authManager.showLoginError?.(
-          "S'ha perdut la connexió amb el servidor. Torna a iniciar sessió."
-        );
-      } catch (error) {
-        console.warn("[SOCKET] Error mostrant missatge d'error:", error);
-      }
-    }, 100);
+    if (this.authManager) {
+      this.authManager.isAuthenticated = false;
+      this.authManager.authToken = null;
+      this.authManager.showLogin();
+    }
   }
 
   /**
@@ -208,29 +204,18 @@ export class SocketManager {
    * @param {string} message - Missatge d'error
    */
   handleAuthError(message) {
-    try {
-      this.socket?.disconnect();
-    } catch (error) {
-      console.warn("[SOCKET] Error desconnectant socket:", error);
+    console.error("[SOCKET] Error d'autenticació:", message);
+
+    if (this.socket) {
+      this.socket.disconnect();
     }
 
     if (window.socket === this.socket) {
       window.socket = null;
     }
 
-    if (this.authManager) {
-      this.authManager.isAuthenticated = false;
-      this.authManager.authToken = null;
-      this.authManager.showLogin();
-
-      setTimeout(() => {
-        try {
-          this.authManager.showLoginError?.(message);
-        } catch (error) {
-          console.warn("[SOCKET] Error mostrant missatge d'error:", error);
-        }
-      }, 100);
-    }
+    this.socket = null;
+    this.pendingConnection = false;
   }
 
   /**
