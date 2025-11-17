@@ -254,12 +254,44 @@ function setupEventListeners() {
   document
     .getElementById("cercaAlumnes")
     ?.addEventListener("input", eventHandlers.cercaAlumnes);
-  document
-    .getElementById("filtreGrupAlumnes")
-    ?.addEventListener("change", eventHandlers.filtreGrupAlumnes);
+
+  // Selector de grups - afegir event per demanar dades si no estan disponibles
+  const filtreGrupElement = document.getElementById("filtreGrupAlumnes");
+  if (filtreGrupElement) {
+    filtreGrupElement.addEventListener("change", eventHandlers.filtreGrupAlumnes);
+    
+    // Event per demanar dades quan l'usuari clica al selector
+    const handleGrupFocus = () => {
+      if (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) {
+        console.log("[GESTIO] Selector de grups clicat però dades no disponibles, sol·licitant...");
+        const socket = getSocket();
+        if (socket && socket.connected) {
+          socket.emit("getGrupAlumnesList");
+        }
+      }
+    };
+    filtreGrupElement.addEventListener("focus", handleGrupFocus);
+    filtreGrupElement.addEventListener("click", handleGrupFocus);
+  }
   document
     .getElementById("filtreEstatAlumnes")
     ?.addEventListener("change", eventHandlers.filtreEstatAlumnes);
+
+  // Selector de grup del formulari d'alumnes
+  const alumneGrupElement = document.getElementById("alumneGrup");
+  if (alumneGrupElement) {
+    const handleAlumneGrupFocus = () => {
+      if (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) {
+        console.log("[GESTIO] Selector de grup clicat però dades no disponibles, sol·licitant...");
+        const socket = getSocket();
+        if (socket && socket.connected) {
+          socket.emit("getGrupAlumnesList");
+        }
+      }
+    };
+    alumneGrupElement.addEventListener("focus", handleAlumneGrupFocus);
+    alumneGrupElement.addEventListener("click", handleAlumneGrupFocus);
+  }
 
   document
     .getElementById("cercaGrups")
@@ -314,6 +346,26 @@ function requestInitialData() {
         renderitzarTaulaProfessors();
       }
     });
+
+    // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
+    setTimeout(() => {
+      if (
+        !grupAlumnesData ||
+        Object.keys(grupAlumnesData).length === 0 ||
+        professorsData.length === 0
+      ) {
+        console.warn(
+          "[GESTIO] No s'han rebut dades després de 2s, reintentant..."
+        );
+        socket.emit("getGrupAlumnesList");
+        socket.emit("getAdminsList", (response) => {
+          if (response && response.status === "OK") {
+            professorsData = response.data;
+            renderitzarTaulaProfessors();
+          }
+        });
+      }
+    }, 2000);
   } else {
     console.warn("[GESTIO] Socket no connectat, reintentant en 2s...");
     setTimeout(requestInitialData, 2000);

@@ -107,12 +107,15 @@ export class SocketManager {
         console.warn("[SOCKET] Error adjuntant socket al store:", error);
       }
 
-      // Demanar el paquet inicial immediatament després d'adjuntar el socket al store
-      try {
-        requestInitialData("socket:connect");
-      } catch (error) {
-        console.warn("[SOCKET] Error sol·licitant dades inicials:", error);
-      }
+      // Demanar el paquet inicial amb un petit delay per assegurar que els listeners del servidor estan registrats
+      setTimeout(() => {
+        try {
+          console.log("[SOCKET] Sol·licitant dades inicials...");
+          requestInitialData("socket:connect");
+        } catch (error) {
+          console.warn("[SOCKET] Error sol·licitant dades inicials:", error);
+        }
+      }, 100);
 
       // Fallback: si en un curt període no hem rebut grups, tornar a demanar
       setTimeout(() => {

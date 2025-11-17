@@ -54,6 +54,20 @@ function bind() {
     boundElements.set(powerBtn, { event: "click", handler: handlePowerOff });
   }
 
+  // Selector de grups - demanar dades si no estan disponibles
+  const grupSelector = document.getElementById("grupSelector");
+  if (grupSelector && !boundElements.has(grupSelector)) {
+    const handleGrupSelectorFocus = () => {
+      if (!grups_disponibles || !maquines_disponibles) {
+        debugLog("Selector clicat però dades no disponibles, sol·licitant...");
+        requestInitialData("grupSelector-focus");
+      }
+    };
+    grupSelector.addEventListener("focus", handleGrupSelectorFocus);
+    grupSelector.addEventListener("click", handleGrupSelectorFocus);
+    boundElements.set(grupSelector, { event: "focus", handler: handleGrupSelectorFocus });
+  }
+
   // Store listeners
   unsubscribers.push(
     storeOn("grupAlumnesList", (data) => {
@@ -110,6 +124,17 @@ export async function init() {
 
   // Sol·licitar dades inicials
   requestInitialData("screens-mount");
+
+  // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
+  setTimeout(() => {
+    if (!grups_disponibles || !maquines_disponibles) {
+      console.warn(
+        "[SCREENS-VIEW] No s'han rebut totes les dades després de 2s, reintentant...",
+        { grups_disponibles, maquines_disponibles }
+      );
+      requestInitialData("screens-mount-retry");
+    }
+  }, 2000);
 
   // Inicialitzar listeners de cast sidebar (després d'un tick)
   setTimeout(() => {
