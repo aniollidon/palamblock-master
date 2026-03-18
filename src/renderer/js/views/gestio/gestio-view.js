@@ -11,6 +11,7 @@
 // Importar gestio-logic.js per carregar window.GestioAPI
 import "./gestio-logic.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { on as storeOn } from "../../core/store.js";
 
 // Variables globals
 let grupAlumnesData = {};
@@ -167,12 +168,12 @@ export function unmountGestioView() {
     eventHandlers[key] = null;
   });
 
-  // Netejar listeners del socket
-  const socket = getSocket();
-  if (socketListener && socket) {
-    socket.off("grupAlumnesList", socketListener);
+  // Netejar listeners
+  if (socketListener) {
+    socketListener(); // store.on() retorna una funció d'unsubscribe
     socketListener = null;
   }
+  const socket = getSocket();
   if (socketListenerAdmins && socket) {
     socket.off("adminsList", socketListenerAdmins);
     socketListenerAdmins = null;
@@ -304,16 +305,17 @@ function setupEventListeners() {
     .getElementById("cercaProfessors")
     ?.addEventListener("input", eventHandlers.cercaProfessors);
 
-  // Listener per actualitzacions del socket
+  // Listener per actualitzacions via store (grupAlumnesList)
+  // Utilitza el store en comptes del socket directe per beneficiar-se del replay immediat
+  socketListener = storeOn("grupAlumnesList", (grups) => {
+    console.log("Rebudes dades actualitzades de grups i alumnes", grups);
+    grupAlumnesData = grups;
+    renderitzarTaules();
+  });
+
+  // Listener per actualitzacions del socket (adminsList - no gestionat pel store)
   const socket = getSocket();
   if (socket) {
-    socketListener = (grups) => {
-      console.log("Rebudes dades actualitzades de grups i alumnes", grups);
-      grupAlumnesData = grups;
-      renderitzarTaules();
-    };
-    socket.on("grupAlumnesList", socketListener);
-
     socketListenerAdmins = (admins) => {
       console.log("Rebudes dades actualitzades de professors", admins);
       professorsData = admins;
@@ -350,8 +352,7 @@ function requestInitialData() {
     // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
     setTimeout(() => {
       if (
-        !grupAlumnesData ||
-        Object.keys(grupAlumnesData).length === 0 ||
+        (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) &&
         professorsData.length === 0
       ) {
         console.warn(
