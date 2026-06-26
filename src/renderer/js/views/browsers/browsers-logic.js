@@ -9,11 +9,24 @@ import {
 import { toogleSideBar } from "./historial-view.js";
 import { compareEqualTabs } from "../../utils/validators.js";
 import { isSuperUser } from "../../utils/validators.js";
+import { getState } from "../../core/store.js";
 
 const storedAlumneInfo = {};
 let grupAlumnesList = {};
 let visibilityAlumnes = {};
 let chromeTabsObjects = {};
+
+function getShownAlumneName(alumne) {
+  const alumnesMachine = getState().alumnesMachine || {};
+  const machines = Object.values(alumnesMachine[alumne] || {});
+  if (machines.length === 0) return alumne;
+
+  const connectedMachine = machines.find((machine) => machine?.connected);
+  if (connectedMachine?.displayName) return connectedMachine.displayName;
+
+  const withDisplay = machines.find((machine) => machine?.displayName);
+  return withDisplay?.displayName || alumne;
+}
 
 export function drawAlumnesActivity(data) {
   let alumnesList = document.getElementById("alumnesList");
@@ -25,6 +38,7 @@ export function drawAlumnesActivity(data) {
         ? data[alumne]
         : undefined;
       let alumneDiv = undefined;
+      const shownName = getShownAlumneName(alumne);
 
       // Draw alumne container
       if (!document.getElementById(alumne + "-container")) {
@@ -69,7 +83,7 @@ export function drawAlumnesActivity(data) {
         alumneDivHeader.setAttribute("class", "alumne-header");
         alumneDivHeader.setAttribute("id", alumne + "-header");
         alumneDiv.appendChild(alumneDivHeader);
-        alumneDivHeader.innerHTML = ` <h3>Alumne: ${alumne}</h3>`;
+        alumneDivHeader.innerHTML = ` <h3>Alumne: ${shownName}</h3>`;
         alumnesList.appendChild(alumneDiv);
 
         const alumneDivButtons = document.createElement("div");
@@ -198,6 +212,10 @@ export function drawAlumnesActivity(data) {
         alumneDivButtons.appendChild(document.createTextNode(" "));
 
         alumneDivButtons.appendChild(document.createTextNode(" "));
+      } else {
+        const alumneDivHeader = document.getElementById(alumne + "-header");
+        const title = alumneDivHeader ? alumneDivHeader.querySelector("h3") : null;
+        if (title) title.textContent = `Alumne: ${shownName}`;
       }
 
       if (alumneInfo) {

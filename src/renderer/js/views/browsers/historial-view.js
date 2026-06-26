@@ -370,7 +370,11 @@ export function drawHistorialWeb(alumne, historial, query) {
 
     const divContent = document.createElement("div");
     divContent.setAttribute("class", "col-10 mb-1 small");
-    divContent.innerHTML = `${webPage.host}`;
+    if (webPage.isExamUser && webPage.tempDisplayName) {
+      divContent.innerHTML = `${webPage.host}<br><span class="text-primary">Sessio examen: ${webPage.tempDisplayName}</span>`;
+    } else {
+      divContent.innerHTML = `${webPage.host}`;
+    }
 
     a.onclick = (ev) => {
       const info = {

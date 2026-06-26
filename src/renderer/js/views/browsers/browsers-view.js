@@ -14,6 +14,7 @@ import { warnNormesWeb } from "./warnings-view.js";
 import {
   on as storeOn,
   off as storeOff,
+  getState,
   requestInitialData,
 } from "../../core/store.js";
 import { getSocket } from "../../core/container-helpers.js";
@@ -131,6 +132,28 @@ function subscribe() {
           data.sortedHistorial,
           data.days
         );
+      } catch (e) {
+        errorSendLog(e);
+      }
+    })
+  );
+
+  unsubscribers.push(
+    storeOn("alumnesMachine", () => {
+      try {
+        const state = getState();
+        drawAlumnesActivity(state.alumnesActivity || {});
+      } catch (e) {
+        errorSendLog(e);
+      }
+    })
+  );
+
+  unsubscribers.push(
+    storeOn("updateAlumnesMachine", () => {
+      try {
+        const state = getState();
+        drawAlumnesActivity(state.alumnesActivity || {});
       } catch (e) {
         errorSendLog(e);
       }
