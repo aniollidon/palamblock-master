@@ -107,21 +107,20 @@ export class SocketManager {
         console.warn("[SOCKET] Error adjuntant socket al store:", error);
       }
 
-      // Demanar el paquet inicial immediatament després d'adjuntar el socket al store
+      // Demanar el paquet inicial immediatament (els listeners del store ja estan registrats)
       try {
+        console.log("[SOCKET] Sol·licitant dades inicials...");
         requestInitialData("socket:connect");
       } catch (error) {
         console.warn("[SOCKET] Error sol·licitant dades inicials:", error);
       }
 
-      // Fallback: si en un curt període no hem rebut grups, tornar a demanar
+      // Fallback: si després d'un temps prudencial no hem rebut grups, tornar a demanar
       setTimeout(() => {
         try {
           const state = getState();
-          const grupsCount = state?.grupAlumnesList
-            ? Object.keys(state.grupAlumnesList).length
-            : 0;
-          if (!grupsCount && this.socket?.connected) {
+          // Comprovar si l'estat és null (mai rebut) vs {} (rebut però buit)
+          if (state.grupAlumnesList === null && this.socket?.connected) {
             console.log(
               "[SOCKET] Fallback: re-sol·licitant dades inicials (no s'han rebut grups)"
             );
@@ -130,7 +129,7 @@ export class SocketManager {
         } catch (e) {
           console.warn("[SOCKET] Error al comprovar fallback de dades:", e);
         }
-      }, 800);
+      }, 1500);
 
       // Emetre esdeveniment
       this.emitEvent("socket:ready", { socket: this.socket });

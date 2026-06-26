@@ -171,6 +171,27 @@ export async function init() {
   // Sol·licitar dades inicials
   requestInitialData("browsers-mount");
 
+  // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
+  setTimeout(() => {
+    if (!grupsLoaded) {
+      console.warn("[BROWSERS-VIEW] No s'han rebut grups després de 2s, reintentant...");
+      requestInitialData("browsers-mount-retry");
+    }
+  }, 2000);
+
+  // Event listener al selector de grups per demanar dades si no estan disponibles
+  const grupSelector = document.getElementById("grupSelector");
+  if (grupSelector) {
+    const handleGrupSelectorFocus = () => {
+      if (!grupsLoaded) {
+        debugLog("Selector de grups clicat però dades no disponibles, sol·licitant...");
+        requestInitialData("grupSelector-focus");
+      }
+    };
+    grupSelector.addEventListener("focus", handleGrupSelectorFocus);
+    grupSelector.addEventListener("click", handleGrupSelectorFocus);
+  }
+
   // Exposar status global (per debugging)
   window.__palamBrowsersViewStatus = {
     loadedAt: new Date().toISOString(),

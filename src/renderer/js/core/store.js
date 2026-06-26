@@ -18,6 +18,14 @@ const state = {
 // Mapa de listeners: event -> Set<callback>
 const listeners = new Map();
 
+// Esdeveniments que tenen estat al store i poden fer replay immediat als nous subscribers
+const replayableEvents = {
+  grupAlumnesList: 'grupAlumnesList',
+  alumnesActivity: 'alumnesActivity',
+  normesWeb: 'normesWeb',
+  alumnesMachine: 'alumnesMachine',
+};
+
 // Socket administrador connectat
 let adminSocket = null;
 
@@ -35,6 +43,23 @@ export function on(event, fn) {
     listeners.set(event, new Set());
   }
   listeners.get(event).add(fn);
+
+  // Replay immediat: si ja tenim dades cachejades per aquest event,
+  // cridem el listener asíncronament perquè les vistes rebin dades
+  // sense haver d'esperar una nova resposta del servidor.
+  const stateKey = replayableEvents[event];
+  if (stateKey && state[stateKey] != null) {
+    const cached = state[stateKey];
+    queueMicrotask(() => {
+      try {
+        if (listeners.get(event)?.has(fn)) {
+          fn(cached);
+        }
+      } catch (error) {
+        console.warn(`[STORE] Error en replay immediat de '${event}':`, error);
+      }
+    });
+  }
   
   // Retorna funció d'unsubscribe
   return () => off(event, fn);

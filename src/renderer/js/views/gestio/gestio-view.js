@@ -11,6 +11,7 @@
 // Importar gestio-logic.js per carregar window.GestioAPI
 import "./gestio-logic.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { on as storeOn } from "../../core/store.js";
 
 // Variables globals
 let grupAlumnesData = {};
@@ -167,12 +168,12 @@ export function unmountGestioView() {
     eventHandlers[key] = null;
   });
 
-  // Netejar listeners del socket
-  const socket = getSocket();
-  if (socketListener && socket) {
-    socket.off("grupAlumnesList", socketListener);
+  // Netejar listeners
+  if (socketListener) {
+    socketListener(); // store.on() retorna una funció d'unsubscribe
     socketListener = null;
   }
+  const socket = getSocket();
   if (socketListenerAdmins && socket) {
     socket.off("adminsList", socketListenerAdmins);
     socketListenerAdmins = null;
@@ -254,12 +255,44 @@ function setupEventListeners() {
   document
     .getElementById("cercaAlumnes")
     ?.addEventListener("input", eventHandlers.cercaAlumnes);
-  document
-    .getElementById("filtreGrupAlumnes")
-    ?.addEventListener("change", eventHandlers.filtreGrupAlumnes);
+
+  // Selector de grups - afegir event per demanar dades si no estan disponibles
+  const filtreGrupElement = document.getElementById("filtreGrupAlumnes");
+  if (filtreGrupElement) {
+    filtreGrupElement.addEventListener("change", eventHandlers.filtreGrupAlumnes);
+    
+    // Event per demanar dades quan l'usuari clica al selector
+    const handleGrupFocus = () => {
+      if (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) {
+        console.log("[GESTIO] Selector de grups clicat però dades no disponibles, sol·licitant...");
+        const socket = getSocket();
+        if (socket && socket.connected) {
+          socket.emit("getGrupAlumnesList");
+        }
+      }
+    };
+    filtreGrupElement.addEventListener("focus", handleGrupFocus);
+    filtreGrupElement.addEventListener("click", handleGrupFocus);
+  }
   document
     .getElementById("filtreEstatAlumnes")
     ?.addEventListener("change", eventHandlers.filtreEstatAlumnes);
+
+  // Selector de grup del formulari d'alumnes
+  const alumneGrupElement = document.getElementById("alumneGrup");
+  if (alumneGrupElement) {
+    const handleAlumneGrupFocus = () => {
+      if (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) {
+        console.log("[GESTIO] Selector de grup clicat però dades no disponibles, sol·licitant...");
+        const socket = getSocket();
+        if (socket && socket.connected) {
+          socket.emit("getGrupAlumnesList");
+        }
+      }
+    };
+    alumneGrupElement.addEventListener("focus", handleAlumneGrupFocus);
+    alumneGrupElement.addEventListener("click", handleAlumneGrupFocus);
+  }
 
   document
     .getElementById("cercaGrups")
@@ -272,16 +305,17 @@ function setupEventListeners() {
     .getElementById("cercaProfessors")
     ?.addEventListener("input", eventHandlers.cercaProfessors);
 
-  // Listener per actualitzacions del socket
+  // Listener per actualitzacions via store (grupAlumnesList)
+  // Utilitza el store en comptes del socket directe per beneficiar-se del replay immediat
+  socketListener = storeOn("grupAlumnesList", (grups) => {
+    console.log("Rebudes dades actualitzades de grups i alumnes", grups);
+    grupAlumnesData = grups;
+    renderitzarTaules();
+  });
+
+  // Listener per actualitzacions del socket (adminsList - no gestionat pel store)
   const socket = getSocket();
   if (socket) {
-    socketListener = (grups) => {
-      console.log("Rebudes dades actualitzades de grups i alumnes", grups);
-      grupAlumnesData = grups;
-      renderitzarTaules();
-    };
-    socket.on("grupAlumnesList", socketListener);
-
     socketListenerAdmins = (admins) => {
       console.log("Rebudes dades actualitzades de professors", admins);
       professorsData = admins;
@@ -314,6 +348,25 @@ function requestInitialData() {
         renderitzarTaulaProfessors();
       }
     });
+
+    // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
+    setTimeout(() => {
+      if (
+        (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) &&
+        professorsData.length === 0
+      ) {
+        console.warn(
+          "[GESTIO] No s'han rebut dades després de 2s, reintentant..."
+        );
+        socket.emit("getGrupAlumnesList");
+        socket.emit("getAdminsList", (response) => {
+          if (response && response.status === "OK") {
+            professorsData = response.data;
+            renderitzarTaulaProfessors();
+          }
+        });
+      }
+    }, 2000);
   } else {
     console.warn("[GESTIO] Socket no connectat, reintentant en 2s...");
     setTimeout(requestInitialData, 2000);

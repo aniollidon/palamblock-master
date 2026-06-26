@@ -589,7 +589,7 @@ export function obreDialogBloquejaWeb(
       {
         host: hostSwitch.checked ? hostInput.value : undefined,
         protocol: undefined,
-        search: undefined,
+        search: searchSwitch.checked ? searchInput.value : undefined,
         pathname: pathnameSwitch.checked ? pathnameInput.value : undefined,
         title: titleSwitch.checked ? "*" + titleInput.value + "*" : undefined,
         browser: undefined,
@@ -598,7 +598,7 @@ export function obreDialogBloquejaWeb(
       },
     ];
 
-    if (!list[0].host && !list[0].pathname && !list[0].title) {
+    if (!list[0].host && !list[0].pathname && !list[0].search && !list[0].title) {
       showErrorToast("Els camps estan buits");
       return;
     }
