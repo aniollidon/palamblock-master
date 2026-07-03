@@ -399,3 +399,54 @@ label {
 .word-filtering {
   background: #5b5b5b;
 }
+
+/* Categories (tags) styles */
+.category-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+  min-height: 24px;
+}
+
+.category-chip {
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+  user-select: none;
+}
+
+.category-chip .btn-close {
+  padding: 0;
+  width: 10px;
+  height: 10px;
+  cursor: pointer;
+}
+
+.norma-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.norma-categories .badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.category-filter-row .input-group {
+  display: flex;
+  gap: 4px;
+}
+
+.category-filter-row .form-select {
+  flex: 1;
+  min-width: 120px;
+}
+
+.category-filter-row .btn {
+  white-space: nowrap;
+}

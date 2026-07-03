@@ -58,6 +58,39 @@ function getDebugModal() {
 
 let normesWebInfo = {};
 let llistaBlancaEnUs = {};
+let allCategoriesCache = [];
+
+async function loadCategoriesFromServer() {
+  return new Promise((resolve) => {
+    const socket = getSocket();
+    if (!socket) { resolve(allCategoriesCache); return; }
+
+    socket.emit("getAllCategories");
+    const handler = (cats) => {
+      allCategoriesCache = cats || [];
+      socket.off("allCategories", handler);
+      resolve(allCategoriesCache);
+    };
+    socket.on("allCategories", handler);
+
+    // Timeout fallback
+    setTimeout(() => {
+      socket.off("allCategories", handler);
+      resolve(allCategoriesCache);
+    }, 3000);
+  });
+}
+
+// Attach persistent listener to keep cache updated
+function attachCategoriesListener() {
+  const socket = getSocket();
+  if (!socket) return;
+  socket.on("allCategories", (cats) => {
+    if (cats) allCategoriesCache = cats;
+  });
+}
+// Try to attach early
+setTimeout(attachCategoriesListener, 500);
 
 export function obre_confirmacio(missatge, siCallback) {
   if (!missatge) {
@@ -366,6 +399,9 @@ export function obreDialogBloquejaWeb(
   );
   const normaButton = document.getElementById("pbk_modalblockweb_creanorma");
   const hSelectDurada = document.getElementById("pbk_modalblockweb-durada");
+  const categoriesInput = document.getElementById("pbk_modalblockweb_categories_input");
+  const categoriesChips = document.getElementById("pbk_modalblockweb_categories_chips");
+  const categoriesDatalist = document.getElementById("pbk_categories_datalist");
   const nowHM = new Date().toLocaleTimeString("ca-ES", {
     hour: "2-digit",
     minute: "2-digit",
@@ -374,6 +410,51 @@ export function obreDialogBloquejaWeb(
   let normaWhoSelection = "alumne";
   let normaWhoId = alumne;
   let normaMode = "blacklist";
+  let selectedCategories = [];
+
+  function renderCategoriesChips() {
+    categoriesChips.innerHTML = "";
+    selectedCategories.forEach((cat, index) => {
+      const chip = document.createElement("span");
+      chip.className = "category-chip badge rounded-pill bg-secondary me-1 mb-1";
+      chip.innerHTML = `${cat} <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.5rem" aria-label="Elimina" data-index="${index}"></button>`;
+      chip.querySelector("button").onclick = (e) => {
+        e.stopPropagation();
+        selectedCategories.splice(index, 1);
+        renderCategoriesChips();
+        updateCategoriesDatalist();
+      };
+      categoriesChips.appendChild(chip);
+    });
+  }
+
+  function addCategory(name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (selectedCategories.includes(trimmed)) return;
+    selectedCategories.push(trimmed);
+    renderCategoriesChips();
+    updateCategoriesDatalist();
+  }
+
+  function updateCategoriesDatalist() {
+    categoriesDatalist.innerHTML = "";
+    const allCats = new Set([...allCategoriesCache, ...selectedCategories]);
+    allCats.forEach((cat) => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      categoriesDatalist.appendChild(opt);
+    });
+  }
+
+  function populateCategoriesDatalist() {
+    categoriesDatalist.innerHTML = "";
+    allCategoriesCache.forEach((cat) => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      categoriesDatalist.appendChild(opt);
+    });
+  }
 
   blocalumnLink.innerHTML = `Bloqueja alumne ${alumne.toUpperCase()}`;
   blocgrupLink.innerHTML = `Bloqueja grup ${grup.toUpperCase()}`;
@@ -439,6 +520,17 @@ export function obreDialogBloquejaWeb(
     titleSwitch.checked = false;
     titleInput.setAttribute("disabled", "disabled");
     titleOptionW.style.display = "none";
+  }
+
+  // Pre-populate categories when editing an existing norma
+  if (menustate.editPrevious) {
+    const { who: editWho, whoid: editWhoId, normaid: editNormaId } = menustate.editPrevious;
+    const whos = editWho === "alumne" ? "alumnes" : "grups";
+    const existingCategories = normesWebInfo[whos]?.[editWhoId]?.[editNormaId]?.categories;
+    if (existingCategories && existingCategories.length > 0) {
+      selectedCategories = [...existingCategories];
+      renderCategoriesChips();
+    }
   }
 
   blocalumnLink.onclick = (event) => {
@@ -578,6 +670,20 @@ export function obreDialogBloquejaWeb(
     menustate.severity = event.target.value;
   };
 
+  // Categories input handler
+  categoriesInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === "Tab" || event.key === ",") {
+      event.preventDefault();
+      addCategory(categoriesInput.value);
+      categoriesInput.value = "";
+    }
+  });
+
+  // Populate datalist for autocomplete
+  loadCategoriesFromServer().then(() => {
+    populateCategoriesDatalist();
+  });
+
   normaButton.onclick = (event) => {
     if (!normaWhoId) {
       showErrorToast("Error: falta seleccionar l'alumne o el grup");
@@ -676,6 +782,7 @@ export function obreDialogBloquejaWeb(
         mode: normaMode,
         list: list,
         enabled_on: enabled_on,
+        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
       });
     });
 
@@ -721,6 +828,113 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   searchCounter.setAttribute("id", "pbk_normes_search_counter");
   searchWrap.appendChild(searchCounter);
   container.appendChild(searchWrap);
+
+  // Category filter row
+  const categoryFilterWrap = document.createElement("div");
+  categoryFilterWrap.setAttribute("class", "category-filter-row mb-2 px-4");
+  const categoryFilterRow = document.createElement("div");
+  categoryFilterRow.setAttribute("class", "input-group input-group-sm");
+
+  const categorySelect = document.createElement("select");
+  categorySelect.setAttribute("class", "form-select");
+  categorySelect.setAttribute("id", "pbk_normes_category_filter");
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "Totes les categories";
+  categorySelect.appendChild(defaultOption);
+
+  // Collect all categories from displayed norms + cache
+  const displayedCategories = new Set();
+  if (normesWebInfo && normesWebInfo[whos] && normesWebInfo[whos][whoid]) {
+    for (const norma in normesWebInfo[whos][whoid]) {
+      const cats = normesWebInfo[whos][whoid][norma].categories || [];
+      cats.forEach((c) => displayedCategories.add(c));
+    }
+  }
+  allCategoriesCache.forEach((c) => displayedCategories.add(c));
+  displayedCategories.forEach((cat) => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    categorySelect.appendChild(opt);
+  });
+
+  const btnActivaTotes = document.createElement("button");
+  btnActivaTotes.setAttribute("class", "btn btn-outline-success btn-sm");
+  btnActivaTotes.setAttribute("type", "button");
+  btnActivaTotes.setAttribute("title", "Activa totes les normes d'aquesta categoria");
+  btnActivaTotes.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/></svg>`;
+  btnActivaTotes.disabled = true;
+
+  const btnDesactivaTotes = document.createElement("button");
+  btnDesactivaTotes.setAttribute("class", "btn btn-outline-warning btn-sm");
+  btnDesactivaTotes.setAttribute("type", "button");
+  btnDesactivaTotes.setAttribute("title", "Desactiva totes les normes d'aquesta categoria");
+  btnDesactivaTotes.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-slash-fill" viewBox="0 0 16 16"><path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/><path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/></svg>`;
+  btnDesactivaTotes.disabled = true;
+
+  categorySelect.addEventListener("change", () => {
+    const selectedCat = categorySelect.value;
+    const hasSelection = selectedCat !== "";
+    btnActivaTotes.disabled = !hasSelection;
+    btnDesactivaTotes.disabled = !hasSelection;
+    applyFilter();
+  });
+
+  btnActivaTotes.addEventListener("click", () => {
+    const cat = categorySelect.value;
+    if (!cat) return;
+    const count = countNormesInCategory(whos, whoid, cat);
+    obre_confirmacio(
+      `Segur que vols <strong>activar</strong> totes les normes (${count}) de la categoria <i>${cat}</i>?`,
+      () => {
+        getSocket()?.emit("setCategoryAlive", {
+          who: who,
+          whoid: whoid,
+          category: cat,
+          alive: true,
+        });
+        normesModal.hide();
+      }
+    );
+  });
+
+  btnDesactivaTotes.addEventListener("click", () => {
+    const cat = categorySelect.value;
+    if (!cat) return;
+    const count = countNormesInCategory(whos, whoid, cat);
+    obre_confirmacio(
+      `Segur que vols <strong>desactivar</strong> totes les normes (${count}) de la categoria <i>${cat}</i>?`,
+      () => {
+        getSocket()?.emit("setCategoryAlive", {
+          who: who,
+          whoid: whoid,
+          category: cat,
+          alive: false,
+        });
+        normesModal.hide();
+      }
+    );
+  });
+
+  categoryFilterRow.appendChild(categorySelect);
+  categoryFilterRow.appendChild(btnActivaTotes);
+  categoryFilterRow.appendChild(btnDesactivaTotes);
+  categoryFilterWrap.appendChild(categoryFilterRow);
+  container.appendChild(categoryFilterWrap);
+
+  // Helper to count norms in a category
+  function countNormesInCategory(whos, whoid, cat) {
+    let count = 0;
+    if (normesWebInfo && normesWebInfo[whos] && normesWebInfo[whos][whoid]) {
+      for (const n in normesWebInfo[whos][whoid]) {
+        if (normesWebInfo[whos][whoid][n].removed) continue;
+        const cats = normesWebInfo[whos][whoid][n].categories || [];
+        if (cats.includes(cat)) count++;
+      }
+    }
+    return count;
+  }
 
   list.setAttribute("class", "list-group");
   container.appendChild(list);
@@ -972,6 +1186,20 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     }
     listItem.appendChild(itemText);
 
+    // Categories badges
+    const normaCategories = normesWebInfo[whos][whoid][norma].categories || ["general"];
+    if (normaCategories.length > 0) {
+      const catBadgesWrap = document.createElement("div");
+      catBadgesWrap.setAttribute("class", "norma-categories mt-1");
+      normaCategories.forEach((cat) => {
+        const badge = document.createElement("span");
+        badge.setAttribute("class", "badge rounded-pill bg-light text-dark me-1");
+        badge.textContent = cat;
+        catBadgesWrap.appendChild(badge);
+      });
+      listItem.appendChild(catBadgesWrap);
+    }
+
     // Prepare searchable content for filtering
     const statusBits = [];
     if (normesWebInfo[whos][whoid][norma].alive) statusBits.push("activa");
@@ -988,12 +1216,15 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
       "\n" +
       statusBits.join(" ") +
       "\n" +
+      normaCategories.join(" ") +
+      "\n" +
       (norma || "")
     )
       .toLowerCase()
       .replace(/\s+/g, " ")
       .trim();
     listItem.setAttribute("data-search", searchableText);
+    listItem.setAttribute("data-categories", normaCategories.join(","));
 
     list.appendChild(listItem);
   }
@@ -1007,11 +1238,18 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   const applyFilter = () => {
     const q = (searchInput.value || "").toLowerCase().trim();
     const tokens = q.split(/\s+/).filter(Boolean);
+    const selectedCat = categorySelect.value;
     const items = list.querySelectorAll(".list-group-item");
     let visible = 0;
     items.forEach((el) => {
       const hay = el.getAttribute("data-search") || "";
-      const match = tokens.every((t) => hay.includes(t));
+      const textMatch = tokens.every((t) => hay.includes(t));
+      let catMatch = true;
+      if (selectedCat) {
+        const itemCats = (el.getAttribute("data-categories") || "").split(",");
+        catMatch = itemCats.includes(selectedCat);
+      }
+      const match = textMatch && catMatch;
       el.style.display = match ? "" : "none";
       if (match) visible++;
     });
