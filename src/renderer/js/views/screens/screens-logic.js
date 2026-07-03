@@ -7,12 +7,39 @@ import { getSocket } from "../../core/container-helpers.js";
 let grupAlumnesList = {};
 let alumnesMachines = {};
 
+function asDisplayText(value, fallback) {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized || fallback;
+  }
+
+  if (value && typeof value === "object") {
+    const candidate =
+      value.displayName ||
+      value.sessionDisplayName ||
+      value.name ||
+      value.user ||
+      value.sessionUser ||
+      value.label ||
+      null;
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return fallback;
+}
+
 function compareMachines(m1, m2) {
   try {
     if (Object.keys(m1).toString() !== Object.keys(m2).toString()) return false;
     for (let key in m1) {
       if (m1[key].connected !== m2[key].connected) return false;
       if (m1[key].ip !== m2[key].ip) return false;
+      if (m1[key].displayName !== m2[key].displayName) return false;
+      if (m1[key].sessionDisplayName !== m2[key].sessionDisplayName)
+        return false;
+      if (m1[key].sessionActive !== m2[key].sessionActive) return false;
     }
 
     return true;
@@ -117,7 +144,13 @@ export function drawGridGrup_update(updatedData) {
 }
 
 function drawGridItem(alumne, maquina) {
-  const shownName = maquina?.displayName || alumne;
+  const shownName = asDisplayText(
+    maquina?.displayName ||
+      (maquina?.sessionActive
+        ? maquina?.sessionDisplayName || maquina?.sessionUser
+        : maquina?.sessionDisplayName),
+    alumne
+  );
   const gridItem = document.createElement("div");
   gridItem.classList.add("grid-item");
   gridItem.setAttribute("id", "grid-item-" + alumne);
@@ -288,10 +321,11 @@ function drawGridItem(alumne, maquina) {
     try {
       navigator.clipboard.writeText(maquina.ip);
     } catch (e) {
-      prompt(
-        "No s'ha pogut accedir al portaretalls \nCopia manualment la IP: \n",
-        maquina.ip
-      );
+      bootbox.alert({
+        title: "No s'ha pogut accedir al portaretalls",
+        message:
+          "Copia manualment la IP:<br><code>" + maquina.ip + "</code>",
+      });
     }
   };
   dropdownItem4.appendChild(buttonCopyIP);

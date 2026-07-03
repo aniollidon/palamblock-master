@@ -15,6 +15,7 @@ import { showWarningToast, showErrorToast } from "../../utils/toast.js";
 import { moveHistorialSidebarToSearch } from "./historial-view.js";
 import { commonPlaces, googleServices, teacherHorari } from "../../common.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { createBootstrapModal } from "../../utils/dom-helpers.js";
 
 // Helper per crear modals de forma segura (pot ser que el node encara no existeixi)
 function safeModal(id) {
@@ -27,7 +28,7 @@ function safeModal(id) {
     };
   }
   try {
-    return new bootstrap.Modal(el);
+    return createBootstrapModal(id);
   } catch (e) {
     console.warn(`[DIALOGS] Error creant modal '${id}':`, e);
     return {
@@ -65,7 +66,7 @@ export function obre_confirmacio(missatge, siCallback) {
   }
 
   const confirmacio = document.getElementById("pbk_modal_confirmacio");
-  const confirmacioModal = new bootstrap.Modal(confirmacio);
+  const confirmacioModal = bootstrap.Modal.getOrCreateInstance(confirmacio);
   const confirmacioMissatge = document.getElementById(
     "pbk_modal_confirmacio_missatge"
   );

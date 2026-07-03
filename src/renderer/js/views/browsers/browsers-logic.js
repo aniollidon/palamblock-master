@@ -15,17 +15,85 @@ const storedAlumneInfo = {};
 let grupAlumnesList = {};
 let visibilityAlumnes = {};
 let chromeTabsObjects = {};
+const missingTempNameWarned = new Set();
+
+function asDisplayText(value, fallback) {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized || fallback;
+  }
+
+  if (value && typeof value === "object") {
+    const candidate =
+      value.displayName ||
+      value.sessionDisplayName ||
+      value.name ||
+      value.user ||
+      value.sessionUser ||
+      value.label ||
+      null;
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return fallback;
+}
+
+function getMachineShownName(machine, fallback = null) {
+  if (!machine || typeof machine !== "object") return fallback;
+
+  const candidate = machine.sessionActive
+    ? machine.displayName || machine.sessionDisplayName || machine.sessionUser
+    : machine.displayName || machine.sessionDisplayName;
+
+  return asDisplayText(candidate, fallback);
+}
 
 function getShownAlumneName(alumne) {
   const alumnesMachine = getState().alumnesMachine || {};
   const machines = Object.values(alumnesMachine[alumne] || {});
   if (machines.length === 0) return alumne;
 
-  const connectedMachine = machines.find((machine) => machine?.connected);
-  if (connectedMachine?.displayName) return connectedMachine.displayName;
+  const examMachine = machines.find((machine) => machine?.sessionActive);
+  if (examMachine && !getMachineShownName(examMachine)) {
+    if (!missingTempNameWarned.has(alumne)) {
+      console.warn("[BROWSERS] Sessio temporal activa sense displayName", {
+        alumne,
+        sessionUser: examMachine.sessionUser,
+        sessionDisplayName: examMachine.sessionDisplayName,
+        displayName: examMachine.displayName,
+      });
+      missingTempNameWarned.add(alumne);
+    }
+  } else {
+    missingTempNameWarned.delete(alumne);
+  }
 
-  const withDisplay = machines.find((machine) => machine?.displayName);
-  return withDisplay?.displayName || alumne;
+  const connectedMachine = machines.find((machine) => machine?.connected);
+  const connectedShown = getMachineShownName(connectedMachine);
+  if (connectedShown) {
+    const shown = asDisplayText(connectedShown, alumne);
+    if (shown !== alumne) {
+      console.debug("[BROWSERS] Nom temporal aplicat", {
+        alumne,
+        shown,
+        source: "connected.machine",
+      });
+    }
+    return shown;
+  }
+
+  const withDisplay = machines.find((machine) => getMachineShownName(machine));
+  const shown = asDisplayText(getMachineShownName(withDisplay), alumne);
+  if (shown !== alumne) {
+    console.debug("[BROWSERS] Nom temporal aplicat", {
+      alumne,
+      shown,
+      source: "any.machine",
+    });
+  }
+  return shown;
 }
 
 export function drawAlumnesActivity(data) {

@@ -36,6 +36,11 @@
 .grid-item-content-header-name{
     font-size: 17px;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 140px;
 }
 
 .grid-item-content-header{

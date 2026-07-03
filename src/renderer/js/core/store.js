@@ -165,6 +165,24 @@ export function attachAdminSocket(sock) {
   });
 
   onEvt('updateAlumnesMachine', (data) => {
+    state.alumnesMachine = data || {};
+    let diag = null;
+    for (const alumne of Object.keys(state.alumnesMachine || {})) {
+      for (const machine of Object.values(state.alumnesMachine[alumne] || {})) {
+        if (machine && (machine.sessionActive || machine.displayName)) {
+          diag = {
+            alumne,
+            sessionActive: Boolean(machine.sessionActive),
+            sessionUser: machine.sessionUser || null,
+            sessionDisplayName: machine.sessionDisplayName || null,
+            displayName: machine.displayName || null,
+          };
+          break;
+        }
+      }
+      if (diag) break;
+    }
+    console.log('[STORE] updateAlumnesMachine diag:', diag);
     emit('updateAlumnesMachine', data);
   });
 

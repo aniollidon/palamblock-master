@@ -12,6 +12,10 @@
 import "./gestio-logic.js";
 import { getSocket } from "../../core/container-helpers.js";
 import { on as storeOn } from "../../core/store.js";
+import {
+  createBootstrapModal,
+  cleanupOrphanBootstrapBackdrops,
+} from "../../utils/dom-helpers.js";
 
 // Variables globals
 let grupAlumnesData = {};
@@ -66,31 +70,19 @@ export function mountGestioView() {
 
   console.log("Inicialitzant Super Mode UI...");
 
-  // Inicialitzar modals (dispose primer per si ja existien)
+  // Inicialitzar modals
   const modalAlumneEl = document.getElementById("modalAlumne");
   const modalGrupEl = document.getElementById("modalGrup");
   const modalProfessorEl = document.getElementById("modalProfessor");
 
   if (modalAlumneEl) {
-    // Dispose de la instància anterior si existeix
-    if (modalAlumneInstance) {
-      modalAlumneInstance.dispose();
-    }
-    modalAlumneInstance = new bootstrap.Modal(modalAlumneEl);
+    modalAlumneInstance = createBootstrapModal("modalAlumne");
   }
   if (modalGrupEl) {
-    // Dispose de la instància anterior si existeix
-    if (modalGrupInstance) {
-      modalGrupInstance.dispose();
-    }
-    modalGrupInstance = new bootstrap.Modal(modalGrupEl);
+    modalGrupInstance = createBootstrapModal("modalGrup");
   }
   if (modalProfessorEl) {
-    // Dispose de la instància anterior si existeix
-    if (modalProfessorInstance) {
-      modalProfessorInstance.dispose();
-    }
-    modalProfessorInstance = new bootstrap.Modal(modalProfessorEl);
+    modalProfessorInstance = createBootstrapModal("modalProfessor");
   }
 
   // Event listeners
@@ -181,26 +173,23 @@ export function unmountGestioView() {
 
   // Netejar modals
   if (modalAlumneInstance) {
+    modalAlumneInstance.hide();
     modalAlumneInstance.dispose();
     modalAlumneInstance = null;
   }
   if (modalGrupInstance) {
+    modalGrupInstance.hide();
     modalGrupInstance.dispose();
     modalGrupInstance = null;
   }
   if (modalProfessorInstance) {
+    modalProfessorInstance.hide();
     modalProfessorInstance.dispose();
     modalProfessorInstance = null;
   }
 
-  // Netejar backdrops que puguin quedar
-  const backdrops = document.querySelectorAll(".modal-backdrop");
-  backdrops.forEach((backdrop) => backdrop.remove());
-
-  // Eliminar classe del body que Bootstrap afegeix
-  document.body.classList.remove("modal-open");
-  document.body.style.removeProperty("overflow");
-  document.body.style.removeProperty("padding-right");
+  // Netejar backdrops orfes si no hi ha cap modal activa
+  cleanupOrphanBootstrapBackdrops();
 
   // Reiniciar dades
   grupAlumnesData = {};

@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@core/*": ["src/renderer/js/core/*"],
       "@utils/*": ["src/renderer/js/utils/*"],
@@ -8,7 +9,7 @@
     },
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "checkJs": false,
     "jsx": "preserve"
   },

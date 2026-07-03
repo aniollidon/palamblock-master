@@ -4,6 +4,7 @@
  */
 
 import { md5 } from "../utils/md5.js";
+import { createBootstrapModal } from "../utils/dom-helpers.js";
 
 export class AuthManager {
   /**
@@ -207,13 +208,13 @@ export class AuthManager {
     }
 
     if (!this._modalInstance) {
-      this._modalInstance = new bootstrap.Modal(modal, {
+      this._modalInstance = createBootstrapModal("loginModal", {
         backdrop: "static",
         keyboard: false,
       });
     }
 
-    this._modalInstance.show();
+    this._modalInstance?.show();
   }
 
   /**

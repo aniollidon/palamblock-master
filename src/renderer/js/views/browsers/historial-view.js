@@ -2,6 +2,20 @@ import { chromeTabsObjects } from "./browsers-logic.js";
 import { creaWebMenuJSON } from "./normes-logic.js";
 import { getSocket } from "../../core/container-helpers.js";
 
+function asDisplayText(value) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (value && typeof value === "object") {
+    const candidate =
+      value.displayName || value.name || value.user || value.label || "";
+    return typeof candidate === "string" ? candidate.trim() : "";
+  }
+
+  return "";
+}
+
 // Helper: emet l'esdeveniment quan el socket estigui llest
 function emitWhenReady(eventName, payload) {
   const attempt = () => {
@@ -370,8 +384,9 @@ export function drawHistorialWeb(alumne, historial, query) {
 
     const divContent = document.createElement("div");
     divContent.setAttribute("class", "col-10 mb-1 small");
-    if (webPage.isExamUser && webPage.tempDisplayName) {
-      divContent.innerHTML = `${webPage.host}<br><span class="text-primary">Sessio examen: ${webPage.tempDisplayName}</span>`;
+    const tempDisplayName = asDisplayText(webPage.tempDisplayName);
+    if (webPage.isExamUser && tempDisplayName) {
+      divContent.innerHTML = `${webPage.host}<br><span class="text-primary">Sessio examen: ${tempDisplayName}</span>`;
     } else {
       divContent.innerHTML = `${webPage.host}`;
     }
@@ -472,12 +487,26 @@ export function drawHistorialHostsSortedByUsage(alumne, sortedHistorial, days) {
       <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
     </svg>`;
   buttonchangeHistorialDays.onclick = () => {
-    const days = prompt("Introdueix el nombre de dies", "7");
-    socket.emit("getHistorialHostsSortedByUsage", {
-      alumne: alumne,
-      pastDays: days,
+    bootbox.prompt({
+      title: "Introdueix el nombre de dies",
+      inputType: "number",
+      value: Number(days) > 0 ? Number(days) : 7,
+      callback: (result) => {
+        if (result === null) return;
+
+        const parsedDays = parseInt(result, 10);
+        if (!Number.isFinite(parsedDays) || parsedDays <= 0) {
+          bootbox.alert("Introdueix un nombre de dies vàlid (major que 0).");
+          return;
+        }
+
+        socket.emit("getHistorialHostsSortedByUsage", {
+          alumne: alumne,
+          pastDays: parsedDays,
+        });
+        historialSortedSidebarContent.innerHTML = "Carregant...";
+      },
     });
-    historialSortedSidebarContent.innerHTML = "Carregant...";
   };
   titleh7.appendChild(buttonchangeHistorialDays);
 

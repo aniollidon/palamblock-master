@@ -278,6 +278,22 @@ export function setInputValue(selector, value) {
 }
 
 /**
+ * Neteja backdrops orfes de Bootstrap quan no hi ha cap modal oberta
+ * @param {boolean} force - Si és true, força la neteja encara que hi hagi modals obertes
+ */
+export function cleanupOrphanBootstrapBackdrops(force = false) {
+  const hasOpenModal = document.querySelector(".modal.show") !== null;
+  if (!force && hasOpenModal) return;
+
+  document
+    .querySelectorAll(".modal-backdrop")
+    .forEach((backdrop) => backdrop.remove());
+  document.body.classList.remove("modal-open");
+  document.body.style.removeProperty("overflow");
+  document.body.style.removeProperty("padding-right");
+}
+
+/**
  * Crea i mostra un modal de Bootstrap
  * @param {string} modalId - ID del modal
  * @param {object} options - Opcions del modal
@@ -291,7 +307,14 @@ export function createBootstrapModal(modalId, options = {}) {
   }
 
   try {
-    return new bootstrap.Modal(modalEl, options);
+    if (!modalEl.dataset.pbkModalCleanupBound) {
+      modalEl.addEventListener("hidden.bs.modal", () => {
+        cleanupOrphanBootstrapBackdrops();
+      });
+      modalEl.dataset.pbkModalCleanupBound = "1";
+    }
+
+    return bootstrap.Modal.getOrCreateInstance(modalEl, options);
   } catch (error) {
     console.error(`[DOM] Error creant modal '${modalId}':`, error);
     return null;
