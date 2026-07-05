@@ -450,3 +450,89 @@ label {
 .category-filter-row .btn {
   white-space: nowrap;
 }
+
+/* --- Confirmació modal z-index per sobre d'altres modals --- */
+#pbk_modal_confirmacio {
+  z-index: 1065 !important;
+}
+
+/* --- Dropdown de suggeriments de categories (bloquejaModalWeb) --- */
+.categories-suggestions-wrapper {
+  position: relative;
+}
+.categories-suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: none;
+}
+.categories-suggestions-dropdown.show {
+  display: block;
+}
+.categories-suggestion-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.1s;
+}
+.categories-suggestion-item:hover,
+.categories-suggestion-item.active {
+  background: #e9ecef;
+}
+.categories-suggestion-item .existing-badge {
+  font-size: 0.7rem;
+  color: #6c757d;
+}
+.categories-suggestion-item.create-new {
+  border-top: 1px solid #eee;
+  color: #0d6efd;
+  font-style: italic;
+}
+
+/* --- Norma detalls amb categories inline a la dreta --- */
+.norma-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.norma-details-lines {
+  flex: 1;
+  min-width: 0;
+}
+.norma-details-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-end;
+  max-width: 35%;
+}
+.norma-details-categories .badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* --- Menú tres punts (normesModal category actions) --- */
+.category-actions-dropdown .btn-link {
+  color: #6c757d;
+  padding: 2px 4px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.category-actions-dropdown .dropdown-item {
+  font-size: 0.8rem;
+  padding: 6px 14px;
+}

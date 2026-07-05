@@ -302,6 +302,7 @@ export function drawAlumnesActivity(data) {
 
         for (const browser in alumneInfo.browsers) {
           const browserInfo = alumneInfo.browsers[browser];
+          const browserName = browserInfo.browser || browser;
 
           let browserDiv = document.getElementById(
             alumne + "-" + browser + "-browser"
@@ -383,7 +384,7 @@ export function drawAlumnesActivity(data) {
             const browserIcon = document.createElement("img");
             browserIcon.setAttribute(
               "src",
-              "images/" + browserInfo.browser.toLowerCase() + ".png"
+              "images/" + browserName.toLowerCase() + ".png"
             );
             browserIcon.setAttribute("class", "browser-icon");
             const browserVersion = document.createElement("div");
@@ -404,7 +405,7 @@ export function drawAlumnesActivity(data) {
             );
             browserWin.appendChild(browserTabsBottomBar);
 
-            const menu_options = creaWebMenuJSON(alumne, browserInfo.browser);
+            const menu_options = creaWebMenuJSON(alumne, browserName);
 
             // init chrome tabs
             if (!chromeTabsObjects[alumne]) chromeTabsObjects[alumne] = {};

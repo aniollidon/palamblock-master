@@ -60,6 +60,34 @@ let normesWebInfo = {};
 let llistaBlancaEnUs = {};
 let allCategoriesCache = [];
 
+// Estat persistent del filtre de normes (cerca + categoria)
+let normesModalSearchQuery = "";
+let normesModalCategoryFilter = "";
+
+// Helper: espera que el servidor actualitzi normesWeb abans d'executar el callback.
+// Escolta directament al socket per evitar el "replay immediat" del store.
+function waitForNormesUpdate(callback, timeout = 5000) {
+  const socket = getSocket();
+  if (!socket) { callback(); return; }
+
+  let fired = false;
+  const handler = () => {
+    if (fired) return;
+    fired = true;
+    socket.off("normesWeb", handler);
+    callback();
+  };
+  socket.on("normesWeb", handler);
+
+  // Timeout de seguretat per si el servidor no respon
+  setTimeout(() => {
+    if (fired) return;
+    fired = true;
+    socket.off("normesWeb", handler);
+    callback();
+  }, timeout);
+}
+
 async function loadCategoriesFromServer() {
   return new Promise((resolve) => {
     const socket = getSocket();
@@ -402,6 +430,21 @@ export function obreDialogBloquejaWeb(
   const categoriesInput = document.getElementById("pbk_modalblockweb_categories_input");
   const categoriesChips = document.getElementById("pbk_modalblockweb_categories_chips");
   const categoriesDatalist = document.getElementById("pbk_categories_datalist");
+
+  // Protecció: si els elements del modal no existeixen, avortar
+  if (!categoriesInput || !categoriesChips) {
+    console.error("[DIALOGS] Elements del modal bloquejaWeb no trobats al DOM. La vista pot no estar carregada.");
+    showErrorToast("No s'ha pogut obrir el modal de bloqueig. Torna a obrir la vista de navegadors.");
+    return;
+  }
+
+  // Protecció addicional: si l'estructura bàsica del modal no hi és
+  if (!blocalumnLink || !severitySelect || !hostInput || !normaButton) {
+    console.error("[DIALOGS] Estructura bàsica del modal bloquejaWeb no trobada al DOM.");
+    showErrorToast("No s'ha pogut obrir el modal de bloqueig. Torna a obrir la vista de navegadors.");
+    return;
+  }
+
   const nowHM = new Date().toLocaleTimeString("ca-ES", {
     hour: "2-digit",
     minute: "2-digit",
@@ -411,16 +454,20 @@ export function obreDialogBloquejaWeb(
   let normaWhoId = alumne;
   let normaMode = "blacklist";
   let selectedCategories = [];
+  // Sempre netejar els chips al obrir el modal
+  categoriesChips.innerHTML = "";
 
   function renderCategoriesChips() {
     categoriesChips.innerHTML = "";
     selectedCategories.forEach((cat, index) => {
       const chip = document.createElement("span");
       chip.className = "category-chip badge rounded-pill bg-secondary me-1 mb-1";
-      chip.innerHTML = `${cat} <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.5rem" aria-label="Elimina" data-index="${index}"></button>`;
+      chip.innerHTML = `${cat} <button type="button" class="btn-close btn-close-white ms-1" style="font-size:0.5rem" aria-label="Elimina"></button>`;
       chip.querySelector("button").onclick = (e) => {
         e.stopPropagation();
-        selectedCategories.splice(index, 1);
+        // Trobar l'índex real pel nom de la categoria (més segur que data-index)
+        const idx = selectedCategories.indexOf(cat);
+        if (idx > -1) selectedCategories.splice(idx, 1);
         renderCategoriesChips();
         updateCategoriesDatalist();
       };
@@ -435,6 +482,11 @@ export function obreDialogBloquejaWeb(
     selectedCategories.push(trimmed);
     renderCategoriesChips();
     updateCategoriesDatalist();
+    // Si és una categoria nova, emetre al servidor
+    if (!allCategoriesCache.includes(trimmed)) {
+      allCategoriesCache.push(trimmed);
+      getSocket()?.emit("addCategory", { category: trimmed });
+    }
   }
 
   function updateCategoriesDatalist() {
@@ -670,16 +722,233 @@ export function obreDialogBloquejaWeb(
     menustate.severity = event.target.value;
   };
 
-  // Categories input handler
-  categoriesInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === "Tab" || event.key === ",") {
-      event.preventDefault();
-      addCategory(categoriesInput.value);
-      categoriesInput.value = "";
-    }
-  });
+  // Categories: dropdown amb cerca (substitut del datalist simple)
+  categoriesInput.removeAttribute("list"); // treure datalist, fem servir dropdown custom
 
-  // Populate datalist for autocomplete
+  // Netejar listeners antics del categoriesInput per evitar stacking
+  if (categoriesInput._pbkCatHandlers) {
+    const h = categoriesInput._pbkCatHandlers;
+    categoriesInput.removeEventListener("input", h.input);
+    categoriesInput.removeEventListener("keydown", h.keydown);
+    categoriesInput.removeEventListener("focus", h.focus);
+    categoriesInput.removeEventListener("blur", h.blur);
+    // Netejar també el listener de document (tancar dropdown en clicar fora)
+    if (h.docClick) {
+      document.removeEventListener("click", h.docClick);
+    }
+  }
+
+  // Eliminar wrapper antic si existeix. Abans, retornar l'input al seu lloc original
+  // per evitar que sigui eliminat juntament amb el wrapper.
+  const oldWrapper = document.querySelector(".categories-suggestions-wrapper");
+  if (oldWrapper) {
+    // Tornar categoriesInput al seu pare original (el contenidor del modal)
+    if (oldWrapper.contains(categoriesInput)) {
+      oldWrapper.parentNode.insertBefore(categoriesInput, oldWrapper);
+    }
+    oldWrapper.remove();
+  }
+
+  const categoriesWrapper = document.createElement("div");
+  categoriesWrapper.className = "categories-suggestions-wrapper";
+  categoriesInput.parentNode.insertBefore(categoriesWrapper, categoriesInput);
+  categoriesWrapper.appendChild(categoriesInput);
+
+  const categoriesDropdown = document.createElement("div");
+  categoriesDropdown.className = "categories-suggestions-dropdown";
+  categoriesDropdown.id = "pbk_categories_suggestions";
+  categoriesWrapper.appendChild(categoriesDropdown);
+
+  let categoriesDropdownIndex = -1;
+
+  // Helper per obtenir el dropdown actual del DOM (sempre fresc)
+  function getCatDropdown() {
+    return document.getElementById("pbk_categories_suggestions");
+  }
+
+  function showCategoriesSuggestions(filter) {
+    const dd = getCatDropdown();
+    if (!dd) return;
+    const q = (filter !== undefined ? filter : categoriesInput.value || "").toLowerCase().trim();
+    dd.innerHTML = "";
+    categoriesDropdownIndex = -1;
+
+    if (!q) {
+      // Mostrar totes les categories existents no seleccionades
+      const unselected = allCategoriesCache.filter(c => !selectedCategories.includes(c));
+      if (unselected.length === 0) {
+        dd.classList.remove("show");
+        return;
+      }
+      unselected.forEach((cat) => {
+        dd.appendChild(createSuggestionItem(cat, "existent"));
+      });
+      dd.classList.add("show");
+      return;
+    }
+
+    // Filtrar categories existents que coincideixin
+    const matching = allCategoriesCache.filter(c =>
+      c.toLowerCase().includes(q) && !selectedCategories.includes(c)
+    );
+
+    matching.forEach((cat) => {
+      dd.appendChild(createSuggestionItem(cat, "existent"));
+    });
+
+    // Si no hi ha coincidència exacta, oferir crear-ne una de nova
+    const exactMatch = allCategoriesCache.some(c => c.toLowerCase() === q);
+    if (!exactMatch && !selectedCategories.some(c => c.toLowerCase() === q)) {
+      const createItem = document.createElement("div");
+      createItem.className = "categories-suggestion-item create-new";
+      createItem.innerHTML = `Crear "<strong>${q}</strong>"`;
+      createItem.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        addCategory(q);
+        categoriesInput.value = "";
+        const d = getCatDropdown();
+        if (d) d.classList.remove("show");
+        categoriesInput.focus();
+      });
+      dd.appendChild(createItem);
+    }
+
+    if (dd.children.length === 0) {
+      dd.classList.remove("show");
+    } else {
+      dd.classList.add("show");
+    }
+  }
+
+  function createSuggestionItem(cat, type) {
+    const item = document.createElement("div");
+    item.className = "categories-suggestion-item";
+    item.innerHTML = `${cat} <span class="existing-badge">${type === "existent" ? "existent" : ""}</span>`;
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      addCategory(cat);
+      categoriesInput.value = "";
+      const d = getCatDropdown();
+      if (d) d.classList.remove("show");
+      categoriesInput.focus();
+    });
+    return item;
+  }
+
+  function navigateCategoriesDropdown(direction) {
+    const dd = getCatDropdown();
+    if (!dd) return;
+    const items = dd.querySelectorAll(".categories-suggestion-item");
+    if (items.length === 0) return;
+    if (categoriesDropdownIndex >= 0) {
+      items[categoriesDropdownIndex].classList.remove("active");
+    }
+    if (direction === "down") {
+      categoriesDropdownIndex = (categoriesDropdownIndex + 1) % items.length;
+    } else if (direction === "up") {
+      categoriesDropdownIndex = (categoriesDropdownIndex - 1 + items.length) % items.length;
+    }
+    items[categoriesDropdownIndex].classList.add("active");
+    items[categoriesDropdownIndex].scrollIntoView({ block: "nearest" });
+  }
+
+  function selectActiveCategoriesSuggestion() {
+    const dd = getCatDropdown();
+    if (!dd) return;
+    const items = dd.querySelectorAll(".categories-suggestion-item");
+    if (categoriesDropdownIndex >= 0 && categoriesDropdownIndex < items.length) {
+      items[categoriesDropdownIndex].dispatchEvent(new Event("mousedown", { bubbles: true }));
+    }
+  }
+
+  // Handlers per l'input de categories
+  function categoriesInputHandler(e) {
+    const dd = getCatDropdown();
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (dd && !dd.classList.contains("show")) {
+        showCategoriesSuggestions("");
+      }
+      navigateCategoriesDropdown("down");
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      navigateCategoriesDropdown("up");
+      return;
+    }
+    if (e.key === "Enter") {
+      if (dd && dd.classList.contains("show") && categoriesDropdownIndex >= 0) {
+        e.preventDefault();
+        selectActiveCategoriesSuggestion();
+        return;
+      }
+      e.preventDefault();
+      const val = categoriesInput.value;
+      if (val.trim()) {
+        addCategory(val);
+        categoriesInput.value = "";
+        if (dd) dd.classList.remove("show");
+      }
+      return;
+    }
+    if (e.key === "Tab" || e.key === ",") {
+      e.preventDefault();
+      const val = categoriesInput.value;
+      if (val.trim()) {
+        addCategory(val);
+        categoriesInput.value = "";
+      }
+      if (dd) dd.classList.remove("show");
+      return;
+    }
+    if (e.key === "Escape") {
+      if (dd) dd.classList.remove("show");
+      categoriesDropdownIndex = -1;
+      return;
+    }
+    // Per qualsevol altra tecla, mostrar suggeriments després d'escriure
+    setTimeout(() => showCategoriesSuggestions(categoriesInput.value), 0);
+  }
+
+  function categoriesFocusHandler() {
+    showCategoriesSuggestions(categoriesInput.value);
+  }
+  function categoriesBlurHandler() {
+    setTimeout(() => {
+      const d = getCatDropdown();
+      if (d) d.classList.remove("show");
+    }, 150);
+  }
+  function categoriesInputChangeHandler() {
+    showCategoriesSuggestions(categoriesInput.value);
+  }
+
+  // Attach listeners i guardar referències per netejar-les després
+  categoriesInput.addEventListener("input", categoriesInputChangeHandler);
+  categoriesInput.addEventListener("keydown", categoriesInputHandler);
+  categoriesInput.addEventListener("focus", categoriesFocusHandler);
+  categoriesInput.addEventListener("blur", categoriesBlurHandler);
+
+  // Tancar dropdown en clicar fora (amb referència per netejar-lo)
+  const docClickHandler = function closeCategoriesDropdown(e) {
+    const w = document.querySelector(".categories-suggestions-wrapper");
+    if (!w || w.contains(e.target)) return;
+    const d = getCatDropdown();
+    if (d) d.classList.remove("show");
+    categoriesDropdownIndex = -1;
+  };
+  document.addEventListener("click", docClickHandler);
+
+  categoriesInput._pbkCatHandlers = {
+    input: categoriesInputChangeHandler,
+    keydown: categoriesInputHandler,
+    focus: categoriesFocusHandler,
+    blur: categoriesBlurHandler,
+    docClick: docClickHandler,
+  };
+
+  // Carregar categories del servidor per alimentar el dropdown
   loadCategoriesFromServer().then(() => {
     populateCategoriesDatalist();
   });
@@ -787,6 +1056,16 @@ export function obreDialogBloquejaWeb(
     });
 
     blockModalWeb.hide();
+
+    // Si venim d'una edició, reobrir el modal de normes automàticament
+    if (menustate.editPrevious) {
+      waitForNormesUpdate(() => {
+        obreDialogNormesWeb(
+          menustate.editPrevious.whoid,
+          menustate.editPrevious.who
+        );
+      });
+    }
   };
 
   blockModalWeb.show();
@@ -801,9 +1080,16 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   container.innerHTML = "";
   modalTitle.innerHTML = `Normes web per ${whoid}`;
 
-  // Header with search input
-  const searchWrap = document.createElement("div");
-  searchWrap.setAttribute("class", "mb-2 p-4");
+  // Header: cerca + filtre de categories en paral·lel
+  const headerWrap = document.createElement("div");
+  headerWrap.setAttribute("class", "mb-2 px-3 pt-3");
+  const headerRow = document.createElement("div");
+  headerRow.setAttribute("class", "d-flex gap-2 align-items-start flex-wrap");
+
+  // Columna esquerra: cerca
+  const searchCol = document.createElement("div");
+  searchCol.setAttribute("class", "flex-grow-1");
+  searchCol.style.minWidth = "200px";
   const searchRow = document.createElement("div");
   searchRow.setAttribute("class", "input-group input-group-sm");
   const searchInput = document.createElement("input");
@@ -822,22 +1108,22 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
   searchClearBtn.textContent = "Neteja";
   searchRow.appendChild(searchInput);
   searchRow.appendChild(searchClearBtn);
-  searchWrap.appendChild(searchRow);
+  searchCol.appendChild(searchRow);
   const searchCounter = document.createElement("div");
   searchCounter.setAttribute("class", "small text-muted mt-1");
   searchCounter.setAttribute("id", "pbk_normes_search_counter");
-  searchWrap.appendChild(searchCounter);
-  container.appendChild(searchWrap);
+  searchCol.appendChild(searchCounter);
+  headerRow.appendChild(searchCol);
 
-  // Category filter row
-  const categoryFilterWrap = document.createElement("div");
-  categoryFilterWrap.setAttribute("class", "category-filter-row mb-2 px-4");
-  const categoryFilterRow = document.createElement("div");
-  categoryFilterRow.setAttribute("class", "input-group input-group-sm");
+  // Columna dreta: filtre de categoria + menú tres punts
+  const categoryCol = document.createElement("div");
+  categoryCol.setAttribute("class", "d-flex gap-1 align-items-center");
+  categoryCol.style.minWidth = "180px";
 
   const categorySelect = document.createElement("select");
-  categorySelect.setAttribute("class", "form-select");
+  categorySelect.setAttribute("class", "form-select form-select-sm");
   categorySelect.setAttribute("id", "pbk_normes_category_filter");
+  categorySelect.style.flex = "1";
   const defaultOption = document.createElement("option");
   defaultOption.value = "";
   defaultOption.textContent = "Totes les categories";
@@ -852,6 +1138,11 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     }
   }
   allCategoriesCache.forEach((c) => displayedCategories.add(c));
+  // Afegir opció "sense categoria" per filtrar normes sense etiqueta
+  const senseCatOption = document.createElement("option");
+  senseCatOption.value = "__sense_categoria__";
+  senseCatOption.textContent = "Sense categoria";
+  categorySelect.appendChild(senseCatOption);
   displayedCategories.forEach((cat) => {
     const opt = document.createElement("option");
     opt.value = cat;
@@ -859,69 +1150,97 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     categorySelect.appendChild(opt);
   });
 
-  const btnActivaTotes = document.createElement("button");
-  btnActivaTotes.setAttribute("class", "btn btn-outline-success btn-sm");
-  btnActivaTotes.setAttribute("type", "button");
-  btnActivaTotes.setAttribute("title", "Activa totes les normes d'aquesta categoria");
-  btnActivaTotes.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/></svg>`;
-  btnActivaTotes.disabled = true;
-
-  const btnDesactivaTotes = document.createElement("button");
-  btnDesactivaTotes.setAttribute("class", "btn btn-outline-warning btn-sm");
-  btnDesactivaTotes.setAttribute("type", "button");
-  btnDesactivaTotes.setAttribute("title", "Desactiva totes les normes d'aquesta categoria");
-  btnDesactivaTotes.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-slash-fill" viewBox="0 0 16 16"><path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/><path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/></svg>`;
-  btnDesactivaTotes.disabled = true;
-
-  categorySelect.addEventListener("change", () => {
-    const selectedCat = categorySelect.value;
-    const hasSelection = selectedCat !== "";
-    btnActivaTotes.disabled = !hasSelection;
-    btnDesactivaTotes.disabled = !hasSelection;
-    applyFilter();
-  });
-
-  btnActivaTotes.addEventListener("click", () => {
+  // Substituir botons per menú de tres punts
+  const categoryActionsWrap = document.createElement("div");
+  categoryActionsWrap.className = "category-actions-dropdown dropdown";
+  const dotsBtn = document.createElement("button");
+  dotsBtn.className = "btn btn-outline-secondary btn-sm dropdown-toggle";
+  dotsBtn.type = "button";
+  dotsBtn.setAttribute("data-bs-toggle", "dropdown");
+  dotsBtn.setAttribute("aria-expanded", "false");
+  dotsBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-three-dots-vertical" viewBox="0 0 16 16"><path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/></svg>`;
+  dotsBtn.disabled = true;
+  const dropdownMenu = document.createElement("ul");
+  dropdownMenu.className = "dropdown-menu dropdown-menu-end";
+  const activeItem = document.createElement("li");
+  const activeLink = document.createElement("a");
+  activeLink.className = "dropdown-item";
+  activeLink.href = "#";
+  activeLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-fill me-1" viewBox="0 0 16 16"><path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/><path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/></svg> Activa totes`;
+  activeLink.addEventListener("click", (e) => {
+    e.preventDefault();
     const cat = categorySelect.value;
-    if (!cat) return;
-    const count = countNormesInCategory(whos, whoid, cat);
+    if (!cat || cat === "__sense_categoria__") return;
+    const actualCat = cat;
+    const count = countNormesInCategory(whos, whoid, actualCat);
+    saveNormesFilterState();
     obre_confirmacio(
-      `Segur que vols <strong>activar</strong> totes les normes (${count}) de la categoria <i>${cat}</i>?`,
+      `Segur que vols <strong>activar</strong> totes les normes (${count}) de la categoria <i>${actualCat}</i>?`,
       () => {
         getSocket()?.emit("setCategoryAlive", {
           who: who,
           whoid: whoid,
-          category: cat,
+          category: actualCat,
           alive: true,
         });
         normesModal.hide();
+        waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
       }
     );
   });
-
-  btnDesactivaTotes.addEventListener("click", () => {
+  activeItem.appendChild(activeLink);
+  const deactiveItem = document.createElement("li");
+  const deactiveLink = document.createElement("a");
+  deactiveLink.className = "dropdown-item";
+  deactiveLink.href = "#";
+  deactiveLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-eye-slash-fill me-1" viewBox="0 0 16 16"><path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/><path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/></svg> Desactiva totes`;
+  deactiveLink.addEventListener("click", (e) => {
+    e.preventDefault();
     const cat = categorySelect.value;
-    if (!cat) return;
-    const count = countNormesInCategory(whos, whoid, cat);
+    if (!cat || cat === "__sense_categoria__") return;
+    const actualCat = cat;
+    const count = countNormesInCategory(whos, whoid, actualCat);
+    saveNormesFilterState();
     obre_confirmacio(
-      `Segur que vols <strong>desactivar</strong> totes les normes (${count}) de la categoria <i>${cat}</i>?`,
+      `Segur que vols <strong>desactivar</strong> totes les normes (${count}) de la categoria <i>${actualCat}</i>?`,
       () => {
         getSocket()?.emit("setCategoryAlive", {
           who: who,
           whoid: whoid,
-          category: cat,
+          category: actualCat,
           alive: false,
         });
         normesModal.hide();
+        waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
       }
     );
   });
+  deactiveItem.appendChild(deactiveLink);
+  dropdownMenu.appendChild(activeItem);
+  dropdownMenu.appendChild(deactiveItem);
+  categoryActionsWrap.appendChild(dotsBtn);
+  categoryActionsWrap.appendChild(dropdownMenu);
 
-  categoryFilterRow.appendChild(categorySelect);
-  categoryFilterRow.appendChild(btnActivaTotes);
-  categoryFilterRow.appendChild(btnDesactivaTotes);
-  categoryFilterWrap.appendChild(categoryFilterRow);
-  container.appendChild(categoryFilterWrap);
+  categorySelect.addEventListener("change", () => {
+    const selectedCat = categorySelect.value;
+    dotsBtn.disabled = !selectedCat || selectedCat === "__sense_categoria__";
+    normesModalCategoryFilter = selectedCat;
+    applyFilter();
+  });
+
+  categoryCol.appendChild(categorySelect);
+  categoryCol.appendChild(categoryActionsWrap);
+  headerRow.appendChild(categoryCol);
+  headerWrap.appendChild(headerRow);
+  container.appendChild(headerWrap);
+
+  // Helper: guardar estat del filtre abans de tancar el modal
+  function saveNormesFilterState() {
+    const sInput = document.getElementById("pbk_normes_search");
+    const cSelect = document.getElementById("pbk_normes_category_filter");
+    if (sInput) normesModalSearchQuery = sInput.value;
+    if (cSelect) normesModalCategoryFilter = cSelect.value;
+  }
 
   // Helper to count norms in a category
   function countNormesInCategory(whos, whoid, cat) {
@@ -1014,13 +1333,15 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
           <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
         </svg>`;
     trash.onclick = (event) => {
+      saveNormesFilterState();
       getSocket()?.emit("removeNormaWeb", {
         normaId: norma,
         who: who,
         whoid: whoid,
       });
       normesWebInfo[whos][whoid][norma].removed = true;
-      obreDialogNormesWeb(whoid, who);
+      normesModal.hide();
+      waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
     };
     pencil.onclick = (event) => {
       if (normesWebInfo[whos][whoid][norma].mode !== "blacklist") {
@@ -1029,6 +1350,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
         );
         return;
       }
+      saveNormesFilterState();
       normesModal.hide();
 
       const webpage = {
@@ -1078,6 +1400,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     }
 
     eyeopen.onclick = (event) => {
+      saveNormesFilterState();
       normesWebInfo[whos][whoid][norma].alive = true;
       getSocket()?.emit("updateNormaWeb", {
         normaId: norma,
@@ -1085,9 +1408,11 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
         whoid: whoid,
         alive: true,
       });
-      obreDialogNormesWeb(whoid, who);
+      normesModal.hide();
+      waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
     };
     eyeclose.onclick = (event) => {
+      saveNormesFilterState();
       normesWebInfo[whos][whoid][norma].alive = false;
       getSocket()?.emit("updateNormaWeb", {
         normaId: norma,
@@ -1095,7 +1420,8 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
         whoid: whoid,
         alive: false,
       });
-      obreDialogNormesWeb(whoid, who);
+      normesModal.hide();
+      waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
     };
 
     itemSubtitle.appendChild(pencil);
@@ -1104,15 +1430,18 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     itemHeading.appendChild(itemTitle);
     itemHeading.appendChild(itemSubtitle);
     listItem.appendChild(itemHeading);
-    const itemText = document.createElement("p");
+    const itemText = document.createElement("div");
     itemText.setAttribute("class", "mb-1");
-    itemText.innerHTML = "";
+
+    // Contenidor de línies de la norma (detalls + categories inline)
+    const detailsLines = document.createElement("div");
+    detailsLines.setAttribute("class", "norma-details-lines");
 
     if (window.location.search.includes("super")) {
       const div = document.createElement("div");
       div.setAttribute("class", "norma-line");
       div.innerHTML += "<b>Id:</b> " + norma + " ";
-      itemText.appendChild(div);
+      detailsLines.appendChild(div);
     }
 
     if (normesWebInfo[whos][whoid][norma].lines.length > 0) {
@@ -1132,7 +1461,7 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
           div.innerHTML += "<b>Incognito:</b> " + line.incognito + " ";
         if (line.audible)
           div.innerHTML += "<b>Audible:</b> " + line.audible + " ";
-        itemText.appendChild(div);
+        detailsLines.appendChild(div);
       }
     }
     const divTime = document.createElement("div");
@@ -1182,23 +1511,28 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
         if (time.duration)
           divTime.innerHTML += "durant " + minutstoDDHHMM(time.duration) + ". ";
       }
-      itemText.appendChild(divTime);
+      detailsLines.appendChild(divTime);
     }
-    listItem.appendChild(itemText);
 
-    // Categories badges
-    const normaCategories = normesWebInfo[whos][whoid][norma].categories || ["general"];
+    // Categories badges inline dins la mateixa línia dels detalls
+    const normaCategories = normesWebInfo[whos][whoid][norma].categories || [];
     if (normaCategories.length > 0) {
-      const catBadgesWrap = document.createElement("div");
-      catBadgesWrap.setAttribute("class", "norma-categories mt-1");
+      const catLine = document.createElement("div");
+      catLine.setAttribute("class", "norma-line");
+      catLine.innerHTML = "<b>Categories:</b> ";
       normaCategories.forEach((cat) => {
         const badge = document.createElement("span");
         badge.setAttribute("class", "badge rounded-pill bg-light text-dark me-1");
         badge.textContent = cat;
-        catBadgesWrap.appendChild(badge);
+        badge.style.fontSize = "0.7rem";
+        badge.style.fontWeight = "500";
+        catLine.appendChild(badge);
       });
-      listItem.appendChild(catBadgesWrap);
+      detailsLines.appendChild(catLine);
     }
+
+    itemText.appendChild(detailsLines);
+    listItem.appendChild(itemText);
 
     // Prepare searchable content for filtering
     const statusBits = [];
@@ -1246,8 +1580,14 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
       const textMatch = tokens.every((t) => hay.includes(t));
       let catMatch = true;
       if (selectedCat) {
-        const itemCats = (el.getAttribute("data-categories") || "").split(",");
-        catMatch = itemCats.includes(selectedCat);
+        if (selectedCat === "__sense_categoria__") {
+          // Mostrar només normes sense categories
+          const itemCats = (el.getAttribute("data-categories") || "").trim();
+          catMatch = itemCats === "";
+        } else {
+          const itemCats = (el.getAttribute("data-categories") || "").split(",");
+          catMatch = itemCats.includes(selectedCat);
+        }
       }
       const match = textMatch && catMatch;
       el.style.display = match ? "" : "none";
@@ -1260,13 +1600,25 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
       : "0 normes";
   };
 
-  searchInput.addEventListener("input", applyFilter);
+  searchInput.addEventListener("input", () => {
+    normesModalSearchQuery = searchInput.value;
+    applyFilter();
+  });
   searchClearBtn.addEventListener("click", () => {
     searchInput.value = "";
+    normesModalSearchQuery = "";
     applyFilter();
     searchInput.focus();
   });
 
+  // Restaurar filtre si tenim estat guardat
+  if (normesModalSearchQuery) {
+    searchInput.value = normesModalSearchQuery;
+  }
+  if (normesModalCategoryFilter) {
+    categorySelect.value = normesModalCategoryFilter;
+    dotsBtn.disabled = !normesModalCategoryFilter || normesModalCategoryFilter === "__sense_categoria__";
+  }
   // Initial filter update
   applyFilter();
   normesModal.show();
