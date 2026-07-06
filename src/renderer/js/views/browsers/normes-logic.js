@@ -56,6 +56,67 @@ function getDebugModal() {
   return safeModal("debugModal");
 }
 
+function getBloquejosModal() {
+  return safeModal("bloquejosModal");
+}
+
+// ⚠️ ATENCIÓ: Aquesta funció té una anàloga al servidor (validacioService.js → compara).
+// Si modifiques la lògica aquí, recorda replicar els canvis a l'altra banda.
+function comparaClient(paraula, norma, ishost = false) {
+  if (norma === undefined || norma === null || norma === "" || norma === "*")
+    return true;
+
+  // regex prepare
+  let n = norma.replaceAll(".", "\\.");
+  n = n.replaceAll("*", ".*");
+
+  // add optional www.
+  if (ishost) {
+    if (!n.startsWith("www."))
+      n = "^[w]{0,3}\\.{0,1}" + n;
+  }
+
+  const regex = new RegExp(n, "i");
+  return regex.test(paraula);
+}
+
+/**
+ * Comprova si una norma fa match amb una pàgina web (client-side, replica checkWeb del servidor).
+ * @param {Object} norma - Norma de normesWebInfo amb lines[], mode, severity, alive, enabled_on
+ * @param {Object} webPage - { host, protocol, search, pathname, title }
+ * @returns {boolean}
+ */
+function checkNormaMatchesWebPage(norma, webPage) {
+  for (const line of norma.lines) {
+    const matchHost = !line.host || comparaClient(webPage.host || "", line.host, true);
+    const matchProtocol = !line.protocol || comparaClient(webPage.protocol || "", line.protocol);
+    const matchSearch = !line.search || comparaClient(webPage.search || "", line.search);
+    const matchPathname = !line.pathname || comparaClient(webPage.pathname || "", line.pathname);
+    const matchTitle = !line.title || comparaClient(webPage.title || "", line.title);
+
+    if (matchHost && matchProtocol && matchSearch && matchPathname && matchTitle)
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Retorna l'acció ("allow", "block", "warn") que una norma aplicaria a una pàgina web.
+ * Replica la lògica del servidor: blacklist → match=severity, whitelist → no-match=severity.
+ * @param {Object} norma
+ * @param {Object} webPage
+ * @returns {string} "allow" | "block" | "warn"
+ */
+function getNormaActionForWebPage(norma, webPage) {
+  const matchInLines = checkNormaMatchesWebPage(norma, webPage);
+
+  if (norma.mode === "whitelist") {
+    return matchInLines ? "allow" : norma.severity;
+  }
+  // blacklist (default)
+  return matchInLines ? norma.severity : "allow";
+}
+
 let normesWebInfo = {};
 let llistaBlancaEnUs = {};
 let allCategoriesCache = [];
@@ -210,8 +271,129 @@ export function creaWebMenuJSON(
   };
 
   const mostrarBloquejos = (info) => {
-    // TODO troba les normes que han causat el bloqueig i filtra-les
-    showWarningToast("Aquesta funcionalitat no està implementada encara.");
+    const targetAlumne = info.alumne || alumne;
+    const grup = getGrup(targetAlumne);
+    const webPage = info.webPage;
+
+    const bloquejosModal = getBloquejosModal();
+    const titleEl = document.getElementById("bloquejosModalTitle");
+    const bodyEl = document.getElementById("bloquejosModalBody");
+
+    if (!bodyEl || !titleEl) {
+      showErrorToast("No s'ha pogut obrir el modal de bloquejos.");
+      return;
+    }
+
+    titleEl.innerHTML = `Normes que bloquegen ${webPage.host || "aquesta pàgina"}`;
+    bodyEl.innerHTML = "";
+
+    // Recollir normes de l'alumne i del grup
+    const normesAlumne = normesWebInfo?.alumnes?.[targetAlumne] || {};
+    const normesGrup = grup ? (normesWebInfo?.grups?.[grup] || {}) : {};
+
+    // Combinar totes les normes amb indicador d'origen
+    const totesLesNormes = [];
+    for (const [id, norma] of Object.entries(normesGrup)) {
+      totesLesNormes.push({ id, ...norma, origen: "grup", origenNom: grup });
+    }
+    for (const [id, norma] of Object.entries(normesAlumne)) {
+      totesLesNormes.push({ id, ...norma, origen: "alumne", origenNom: targetAlumne });
+    }
+
+    // Filtrar les que actualment causarien bloqueig o avís
+    const matchingNormes = totesLesNormes.filter((norma) => {
+      if (!norma.alive) return false;
+      if (!normaTempsActiva(norma.enabled_on)) return false;
+      return getNormaActionForWebPage(norma, webPage) !== "allow";
+    });
+
+    if (matchingNormes.length === 0) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.setAttribute("class", "alert alert-info");
+      emptyMsg.innerHTML =
+        "Aquesta pàgina <strong>no té cap bloqueig actiu</strong> actualment. " +
+        "Pot ser que les normes que la bloquejaven hagin estat desactivades o modificades.";
+      bodyEl.appendChild(emptyMsg);
+    } else {
+      const list = document.createElement("div");
+      list.setAttribute("class", "list-group");
+
+      for (const norma of matchingNormes) {
+        const item = document.createElement("div");
+        item.setAttribute(
+          "class",
+          "list-group-item list-group-item-action flex-column align-items-start"
+        );
+
+        const heading = document.createElement("div");
+        heading.setAttribute(
+          "class",
+          "d-flex w-100 justify-content-between align-items-start"
+        );
+
+        const leftSide = document.createElement("div");
+
+        const h6 = document.createElement("h6");
+        h6.setAttribute("class", "mb-1");
+        const actionLabel =
+          norma.mode === "blacklist"
+            ? norma.severity === "block"
+              ? "Bloqueja"
+              : "Avís"
+            : norma.severity === "block"
+              ? "Bloqueja (whitelist: quan NO coincideix)"
+              : "Avís (whitelist: quan NO coincideix)";
+        h6.innerHTML = actionLabel;
+
+        const origenBadge = document.createElement("small");
+        origenBadge.setAttribute("class", "text-muted ms-1");
+        origenBadge.innerHTML = `(${norma.origen}: ${norma.origenNom})`;
+        h6.appendChild(origenBadge);
+        leftSide.appendChild(h6);
+
+        // Detalls de les línies
+        for (const line of norma.lines) {
+          const lineDiv = document.createElement("div");
+          lineDiv.setAttribute("class", "small text-muted");
+          const parts = [];
+          if (line.host) parts.push("<b>Host:</b> " + line.host);
+          if (line.protocol) parts.push("<b>Protocol:</b> " + line.protocol);
+          if (line.pathname) parts.push("<b>Path:</b> " + line.pathname);
+          if (line.search) parts.push("<b>Cerca:</b> " + line.search);
+          if (line.title) parts.push("<b>Títol:</b> " + line.title);
+          lineDiv.innerHTML = parts.join(" ");
+          leftSide.appendChild(lineDiv);
+        }
+
+        heading.appendChild(leftSide);
+
+        // Botó desactivar
+        const toggleBtn = document.createElement("button");
+        toggleBtn.setAttribute("type", "button");
+        toggleBtn.setAttribute("class", "btn btn-outline-danger btn-sm ms-2 flex-shrink-0");
+        toggleBtn.innerHTML = "Desactiva";
+        toggleBtn.onclick = () => {
+          getSocket()?.emit("updateNormaWeb", {
+            normaId: norma.id,
+            who: norma.origen,
+            whoid: norma.origenNom,
+            alive: false,
+          });
+          bloquejosModal.hide();
+          showWarningToast(
+            `Norma desactivada per a ${norma.origenNom}.`
+          );
+        };
+        heading.appendChild(toggleBtn);
+
+        item.appendChild(heading);
+        list.appendChild(item);
+      }
+
+      bodyEl.appendChild(list);
+    }
+
+    bloquejosModal.show();
   };
 
   const onTanca = (info) => {
