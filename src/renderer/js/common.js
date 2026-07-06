@@ -20,6 +20,11 @@ export const commonPlaces = [
     svg: `<svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 me-2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
   },
   {
+    title: "Moodle",
+    url: "https://educaciodigital.cat/iespalamos/moodle",
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="w-4 h-4 me-2" x="0px" y="0px" width="24" height="24" viewBox="0 0 50 50"> <path fill-rule="evenodd" d="M 31 10 L 17 11 L 5 18 L 8 18 L 8 27.214844 C 7.417969 27.695313 7 28.976563 7 30.5 C 7 32.433594 7.671875 34 8.5 34 C 9.328125 34 10 32.933594 10 31 C 10 29.476563 9.582031 27.890625 9 27.277344 L 9 18 L 20 18 Z M 25.5 15 L 20.5 19 L 12.5 19 C 12.402344 19.484375 12.375 19.46875 12.375 19.980469 C 12.375 20.5 12.429688 21.007813 12.53125 21.5 C 12.808594 21.488281 18.5 21 21.519531 23.5 C 22.105469 21.726563 23.730469 19.449219 26.035156 17.378906 C 26.246094 17.1875 26.285156 17.179688 26.5 17 C 26.5 16 26.039063 15.578125 25.5 15 Z M 34 16 C 31.695313 16 29.597656 16.882813 28 18.320313 C 27.695313 18.046875 27.371094 17.804688 27.03125 17.578125 C 26.910156 17.683594 26.78125 17.785156 26.660156 17.894531 C 25.035156 19.355469 23.757813 20.917969 22.9375 22.332031 C 24.148438 22.882813 25 24.089844 25 25.5 L 25 37 L 31 37 L 31 25.5 C 31 23.574219 32.574219 22 34.5 22 C 36.425781 22 38 23.574219 38 25.5 L 38 37 L 44 37 L 44 25 C 44 20.050781 39.949219 16 35 16 Z M 12.53125 22.015625 C 12.195313 22.953125 12 23.953125 12 25 L 12 37 L 18 37 L 18 25.5 C 18 24.632813 18.332031 23.851563 18.859375 23.246094 C 17.320313 22.535156 15.066406 22.074219 12.53125 22.015625 Z"></path> </svg>`,
+  },
+  {
     title: "Youtube",
     url: "youtube.com",
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 me-2" data-id="53"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"></path><path d="m10 15 5-3-5-3z"></path></svg>`,
@@ -33,11 +38,6 @@ export const commonPlaces = [
     title: "Microbit",
     url: "*microbit.org",
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 me-2" data-id="33"><path d="M6 18h8"></path><path d="M3 22h18"></path><path d="M14 22a7 7 0 1 0 0-14h-1"></path><path d="M9 14h2"></path><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"></path><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"></path></svg>`,
-  },
-  {
-    title: "Portes",
-    url: "portes.ffames.cat",
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 me-2" data-id="35"><path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"></path><path d="M8 14v.5"></path><path d="M16 14v.5"></path><path d="M11.25 16.25h1.5L12 17l-.75-.75Z"></path></svg>`,
   },
   {
     title: "Isard",
@@ -133,6 +133,12 @@ export const commonHorari = [
   "12:40",
   "13:35",
   "14:30",
+  "15:30",
+  "16:30",
+  "17:30",
+  "17:50",
+  "18:45",
+  "19:40",
 ];
 
 export const teacherHorari = {

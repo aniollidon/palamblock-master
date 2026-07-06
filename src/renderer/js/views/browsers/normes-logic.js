@@ -359,6 +359,8 @@ function preparaSelectDurada(
   hSelectDurada.innerHTML = "";
   const nextHora = getIntervalHorari(nowHM, 1);
   const next2Hora = getIntervalHorari(nowHM, 2);
+  const next3Hora = getIntervalHorari(nowHM, 3);
+  
   if (nextHora)
     hSelectDurada.appendChild(
       new Option(
@@ -376,6 +378,16 @@ function preparaSelectDurada(
         next2Hora,
         false,
         opcioSeleccionada === next2Hora
+      )
+    );
+
+  if (next3Hora)
+    hSelectDurada.appendChild(
+      new Option(
+        "Tres sessions (fins les " + next3Hora + ")",
+        next3Hora,
+        false,
+        opcioSeleccionada === next3Hora
       )
     );
 
