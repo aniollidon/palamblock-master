@@ -10,6 +10,7 @@ import { toogleSideBar } from "./historial-view.js";
 import { compareEqualTabs } from "../../utils/validators.js";
 import { isSuperUser } from "../../utils/validators.js";
 import { getState } from "../../core/store.js";
+import { refreshWarningsForGroup } from "./warnings-view.js";
 
 const storedAlumneInfo = {};
 let grupAlumnesList = {};
@@ -473,6 +474,8 @@ function drawBrowsersGrup(grup) {
   try {
     localStorage.setItem("pbk:lastBrowsersGroup", grup);
   } catch (_) {}
+  // Refresca els avisos de normes blanques per al nou grup seleccionat
+  refreshWarningsForGroup(grup);
   // Evita executar si no som a la vista de navegadors
   if (!document.getElementById("alumnesList")) return;
   for (let g in grupAlumnesList) {
@@ -685,4 +688,4 @@ export function getAlumnes(grup) {
   return grupAlumnesList[grup].alumnes;
 }
 
-export { chromeTabsObjects };
+export { grupAlumnesList, chromeTabsObjects };

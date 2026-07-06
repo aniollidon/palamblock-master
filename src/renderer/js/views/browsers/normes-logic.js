@@ -1293,7 +1293,9 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
 
   let hadAny = false;
 
-  for (const norma in normesWebInfo[whos][whoid]) {
+  // Invertim l'ordre per mostrar primer les normes més recents
+  const normesOrdenades = Object.keys(normesWebInfo[whos][whoid]).reverse();
+  for (const norma of normesOrdenades) {
     if (normesWebInfo[whos][whoid][norma].removed === true) continue;
     hadAny = true;
 
