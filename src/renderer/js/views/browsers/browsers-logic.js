@@ -369,7 +369,7 @@ export function drawAlumnesActivity(data) {
                   console.log("Tab removed", detail.tabEl);
                   socket.emit("closeTab", {
                     alumne: alumne,
-                    browser: browserInfo.browser,
+                    browser: browserName,
                     tabId: detail.tabEl.info.tabId,
                   });
                 }
@@ -384,7 +384,7 @@ export function drawAlumnesActivity(data) {
             const browserIcon = document.createElement("img");
             browserIcon.setAttribute(
               "src",
-              "images/" + browserName.toLowerCase() + ".png"
+              "images/" + (browserInfo.browser ? browserName.toLowerCase() : "chromium") + ".png"
             );
             browserIcon.setAttribute("class", "browser-icon");
             const browserVersion = document.createElement("div");
