@@ -25,7 +25,7 @@ export function initHome() {
 }
 
 /**
- * Mostra el botó de Gestió si l'usuari és super user
+ * Mostra el botó de Gestió si l'usuari és super user (local + servidor)
  */
 function showGestionButtonIfSuperUser() {
   if (isSuperUser()) {

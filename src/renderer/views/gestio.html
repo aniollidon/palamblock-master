@@ -200,13 +200,15 @@
                         <thead>
                             <tr>
                                 <th>Usuari</th>
+                                <th>Rol</th>
+                                <th>Grups permesos</th>
                                 <th>Accions</th>
                             </tr>
                         </thead>
                         <tbody id="taulaProfessors">
                             <!-- Contingut dinàmic -->
                             <tr>
-                                <td colspan="2" class="text-center text-muted">
+                                <td colspan="4" class="text-center text-muted">
                                     <i class="bi bi-hourglass-split"></i> Carregant professors...
                                 </td>
                             </tr>
@@ -361,6 +363,25 @@
                                 placeholder="Mínim 4 caràcters" required />
                             <div class="form-text" id="professorClauHelp">
                                 En mode edició, la nova contrasenya per l'usuari
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="professorRole" class="form-label">Rol <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select" id="professorRole" required>
+                                <option value="admin">Admin (accés limitat per grups)</option>
+                                <option value="superadmin">Superadmin (accés total)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Grups permesos</label>
+                            <div id="professorGrupsPermesos" class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                                <div class="text-muted small">Carregant grups...</div>
+                            </div>
+                            <div class="form-text">
+                                Només aplica si el rol és "Admin". Selecciona els grups als quals tindrà accés.
                             </div>
                         </div>
                     </form>

@@ -71,7 +71,11 @@ function updateUserInfo() {
     authManager?.isAuthenticated &&
     authManager?.currentCredentials?.username
   ) {
-    userInfo.textContent = `Connectat com a ${authManager.currentCredentials.username}`;
+    const role = authManager.adminRole;
+    const roleBadge = role === 'superadmin'
+      ? ' [Superadmin]'
+      : (role === 'admin' ? ' [Admin]' : '');
+    userInfo.textContent = `Connectat com a ${authManager.currentCredentials.username}${roleBadge}`;
   } else {
     userInfo.textContent = "No autenticat";
   }
@@ -207,7 +211,16 @@ function showSuperActive(hint) {
   hint.classList.remove("text-muted", "text-info");
   hint.classList.add("text-success", "fw-semibold");
 
-  // Mostrar botó de Gestió
+  // Mostrar botó de Gestió només si també és superadmin al servidor
+  const authManager =
+    window.app?.container?.get("authManager") || window.authManager;
+  if (!authManager?.isSuperAdmin?.()) {
+    hint.textContent = "Mode super local, però no ets superadmin al servidor";
+    hint.classList.remove("text-success");
+    hint.classList.add("text-warning");
+    return;
+  }
+
   const gestioBtn = $("#gestioButton");
   if (gestioBtn) {
     gestioBtn.style.display = "";

@@ -836,7 +836,6 @@ function renderitzarTaulaProfessors() {
   const tbody = document.getElementById("taulaProfessors");
   if (!tbody) return;
 
-  // Aplicar cerca
   const cerca =
     document.getElementById("cercaProfessors")?.value.toLowerCase() || "";
 
@@ -847,7 +846,7 @@ function renderitzarTaulaProfessors() {
   if (professors.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="2" class="text-center text-muted">
+        <td colspan="4" class="text-center text-muted">
           <i class="bi bi-inbox"></i> No hi ha professors
         </td>
       </tr>
@@ -860,6 +859,19 @@ function renderitzarTaulaProfessors() {
       (prof) => `
       <tr>
         <td>${prof.user}</td>
+        <td>
+          <span class="badge ${prof.role === 'superadmin' ? 'bg-danger' : 'bg-primary'}">
+            ${prof.role === 'superadmin' ? 'Superadmin' : 'Admin'}
+          </span>
+        </td>
+        <td>
+          ${prof.grupsPermesos && prof.grupsPermesos.length > 0
+            ? prof.grupsPermesos.map(g => `<span class="badge bg-secondary me-1">${g}</span>`).join('')
+            : prof.role === 'superadmin'
+              ? '<span class="text-muted small">Tots</span>'
+              : '<span class="text-warning small">Cap</span>'
+          }
+        </td>
         <td>
           <button class="btn btn-sm btn-outline-primary" onclick="editarProfessor('${prof.user}')">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -889,9 +901,11 @@ function nouProfessor() {
   document.getElementById("professorUser").disabled = false;
   document.getElementById("professorClau").value = "";
   document.getElementById("professorClau").required = true;
+  document.getElementById("professorRole").value = "admin";
   document.getElementById("modalProfessorTitle").textContent = "Nou Professor";
   document.getElementById("professorClauHelp").textContent =
     "Contrasenya per l'usuari (mínim 4 caràcters)";
+  renderitzarGrupsCheckboxes([]);
   modalProfessorInstance?.show();
 }
 
@@ -899,16 +913,54 @@ function nouProfessor() {
  * Editar professor
  */
 function editarProfessor(user) {
+  const prof = professorsData.find(p => p.user === user);
+
   document.getElementById("professorMode").value = "edit";
   document.getElementById("professorUser").value = user;
   document.getElementById("professorUser").disabled = true;
   document.getElementById("professorClau").value = "";
-  document.getElementById("professorClau").required = true;
+  document.getElementById("professorClau").required = false;
+  document.getElementById("professorRole").value = prof?.role || "admin";
   document.getElementById("modalProfessorTitle").textContent =
-    "Canviar Contrasenya";
+    "Editar Professor";
   document.getElementById("professorClauHelp").textContent =
-    "Nova contrasenya per l'usuari";
+    "Deixa-ho en blanc per no canviar la contrasenya";
+  renderitzarGrupsCheckboxes(prof?.grupsPermesos || []);
   modalProfessorInstance?.show();
+}
+
+/**
+ * Renderitzar la llista de checkboxes de grups al modal de professor
+ * @param {string[]} selectedGrups - Grups ja seleccionats (per edició)
+ */
+function renderitzarGrupsCheckboxes(selectedGrups = []) {
+  const container = document.getElementById("professorGrupsPermesos");
+  if (!container) return;
+
+  if (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) {
+    container.innerHTML = '<div class="text-muted small">No hi ha grups disponibles</div>';
+    return;
+  }
+
+  const grups = Object.values(grupAlumnesData).sort((a, b) =>
+    a.grupId.localeCompare(b.grupId)
+  );
+
+  const selectedSet = new Set(selectedGrups);
+
+  container.innerHTML = grups
+    .map(
+      (grup) => `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="${grup.grupId}"
+          id="chkGrup_${grup.grupId}" ${selectedSet.has(grup.grupId) ? 'checked' : ''} />
+        <label class="form-check-label" for="chkGrup_${grup.grupId}">
+          ${grup.nom || grup.grupId} <small class="text-muted">(${grup.grupId})</small>
+        </label>
+      </div>
+    `
+    )
+    .join("");
 }
 
 /**
@@ -920,12 +972,16 @@ async function handleSubmitProfessor(e) {
   const mode = document.getElementById("professorMode").value;
   const user = document.getElementById("professorUser").value.trim();
   const clau = document.getElementById("professorClau").value;
+  const role = document.getElementById("professorRole").value;
+
+  const checkboxes = document.querySelectorAll("#professorGrupsPermesos input[type='checkbox']:checked");
+  const grupsPermesos = Array.from(checkboxes).map(cb => cb.value);
 
   try {
     if (mode === "create") {
-      await window.GestioAPI.crearProfessor(user, clau);
+      await window.GestioAPI.crearProfessor(user, clau, role, grupsPermesos);
     } else {
-      await window.GestioAPI.actualitzarProfessor(user, clau);
+      await window.GestioAPI.actualitzarProfessor(user, clau, role, grupsPermesos);
     }
 
     modalProfessorInstance?.hide();

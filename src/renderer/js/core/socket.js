@@ -135,6 +135,15 @@ export class SocketManager {
       this.emitEvent("socket:ready", { socket: this.socket });
     });
 
+    // Rebre informació del rol des del servidor
+    this.socket.on("roleInfo", (data) => {
+      console.log(`[SOCKET] roleInfo rebut: role=${data?.role}, grups=${data?.grupsPermesos?.length || 0}`);
+      if (this.authManager) {
+        this.authManager.adminRole = data?.role || 'admin';
+        this.authManager.adminGrupsPermesos = data?.grupsPermesos || [];
+      }
+    });
+
     // Desconnexió
     this.socket.on("disconnect", (reason) => {
       console.log(`[SOCKET] Desconnectat (raó: ${reason})`);

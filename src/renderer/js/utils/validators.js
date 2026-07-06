@@ -197,11 +197,20 @@ function hhmmToMinutes(hhmm) {
 
 /**
  * Comprova si l'usuari té mode super activat
+ * Requereix tant el mode super local (sessionStorage) com el rol superadmin del servidor
  * @returns {boolean}
  */
 export function isSuperUser() {
   try {
-    return sessionStorage.getItem("pbk:super") === "1";
+    const localSuper = sessionStorage.getItem("pbk:super") === "1";
+    if (!localSuper) return false;
+
+    // Verificar també el rol del servidor via AuthManager
+    const authManager =
+      window.app?.container?.get("authManager") || window.authManager;
+    const serverSuper = authManager?.isSuperAdmin?.() || false;
+
+    return localSuper && serverSuper;
   } catch (error) {
     return false;
   }

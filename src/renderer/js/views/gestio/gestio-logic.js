@@ -333,7 +333,7 @@ async function canviarClauAlumne(alumneId, novaClau) {
 /**
  * Crear un nou professor/administrador
  */
-async function crearProfessor(user, clau) {
+async function crearProfessor(user, clau, role, grupsPermesos) {
   if (!user || typeof user !== "string" || user.trim() === "") {
     showErrorToast("L'usuari no és vàlid");
     throw new Error("L'usuari no és vàlid");
@@ -344,7 +344,7 @@ async function crearProfessor(user, clau) {
   }
 
   try {
-    await wsOperation("createAdmin", { user, clau });
+    await wsOperation("createAdmin", { user, clau, role: role || 'admin', grupsPermesos: grupsPermesos || [] });
     showSuccessToast(`Professor ${user} creat correctament`);
   } catch (error) {
     showErrorToast(`Error creant professor: ${error.message}`);
@@ -356,15 +356,20 @@ async function crearProfessor(user, clau) {
 /**
  * Actualitzar contrasenya d'un professor
  */
-async function actualitzarProfessor(user, clau) {
-  if (!clau || typeof clau !== "string" || clau.trim() === "") {
-    showErrorToast("La contrasenya no és vàlida");
-    throw new Error("La contrasenya no és vàlida");
+async function actualitzarProfessor(user, clau, role, grupsPermesos) {
+  if (!user || typeof user !== "string" || user.trim() === "") {
+    showErrorToast("L'usuari no és vàlid");
+    throw new Error("L'usuari no és vàlid");
   }
 
   try {
-    await wsOperation("updateAdmin", { user, clau });
-    showSuccessToast(`Contrasenya del professor ${user} actualitzada`);
+    const data = { user };
+    if (clau) data.clau = clau;
+    if (role) data.role = role;
+    if (grupsPermesos !== undefined) data.grupsPermesos = grupsPermesos;
+
+    await wsOperation("updateAdmin", data);
+    showSuccessToast(`Professor ${user} actualitzat correctament`);
   } catch (error) {
     showErrorToast(`Error actualitzant professor: ${error.message}`);
     console.error("Error actualitzant professor:", error);

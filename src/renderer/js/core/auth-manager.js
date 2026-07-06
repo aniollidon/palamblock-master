@@ -19,6 +19,10 @@ export class AuthManager {
     this.authToken = null;
     this.currentAbortController = null;
 
+    // Rol de l'administrador (rebut del servidor)
+    this.adminRole = null;
+    this.adminGrupsPermesos = [];
+
     // Modal elements (lazy loaded)
     this._modal = null;
     this._modalInstance = null;
@@ -499,5 +503,21 @@ export class AuthManager {
         if (loginBtn) loginBtn.disabled = false;
       }
     }
+  }
+
+  /**
+   * Comprova si l'usuari autenticat és superadmin
+   * @returns {boolean}
+   */
+  isSuperAdmin() {
+    return this.adminRole === 'superadmin';
+  }
+
+  /**
+   * Retorna els grups als quals té accés l'admin
+   * @returns {string[]}
+   */
+  getAdminGrups() {
+    return this.adminGrupsPermesos || [];
   }
 }
