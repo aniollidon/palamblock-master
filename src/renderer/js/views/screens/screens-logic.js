@@ -3,6 +3,7 @@ import {
   updateCastStudentData,
 } from "./cast-view.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { openScreenshotsHistory } from "./screenshots-history.js";
 
 let grupAlumnesList = {};
 let alumnesMachines = {};
@@ -170,7 +171,7 @@ function drawGridItem(alumne, maquina) {
 
   // Botó d'apagar
   const buttonOff = document.createElement("button");
-  buttonOff.classList.add("btn", "btn-sm", "btn-danger");
+  buttonOff.classList.add("btn", "btn-sm", "btn-danger", "hidden-offline");
   buttonOff.title = "Apaga la màquina de l'alumne";
   buttonOff.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-power" viewBox="0 0 16 16">
                               <path d="M7.5 1v7h1V1z"/>
@@ -186,7 +187,7 @@ function drawGridItem(alumne, maquina) {
 
   // Botó actualitzar vista
   const buttonRefresh = document.createElement("button");
-  buttonRefresh.classList.add("btn", "btn-sm", "btn-dark");
+  buttonRefresh.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonRefresh.title = "Refresca la vista de la pantalla";
   buttonRefresh.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" class="bi bi-arrow-repeat" viewBox="0 0 16 16">
       <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/>
@@ -199,7 +200,7 @@ function drawGridItem(alumne, maquina) {
 
   // Botó editar amb pantalla completa
   const buttonCursor = document.createElement("button");
-  buttonCursor.classList.add("btn", "btn-sm", "btn-dark");
+  buttonCursor.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonCursor.title = "Obre la pantalla en mode edició (fullscreen)";
   buttonCursor.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cursor" viewBox="0 0 16 16">
           <path d="M14.082 2.182a.5.5 0 0 1 .103.557L8.528 15.467a.5.5 0 0 1-.917-.007L5.57 10.694.803 8.652a.5.5 0 0 1-.006-.916l12.728-5.657a.5.5 0 0 1 .556.103zM2.25 8.184l3.897 1.67a.5.5 0 0 1 .262.263l1.67 3.897L12.743 3.52z"/>
@@ -231,11 +232,32 @@ function drawGridItem(alumne, maquina) {
   dropdownMenu.classList.add("dropdown-menu");
   dropdownMenu.setAttribute("aria-labelledby", "mesBotons_" + alumne);
 
+  // ── Botó Historial de captures (sempre actiu) ──
+  const dropdownItemHist = document.createElement("li");
+  const buttonHistory = document.createElement("button");
+  buttonHistory.classList.add("btn", "btn-sm", "btn-dark");
+  buttonHistory.title = "Historial de captures de pantalla";
+  buttonHistory.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-clock-history" viewBox="0 0 16 16">
+    <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"></path>
+    <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"></path>
+    <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"></path>
+    </svg>`;
+  buttonHistory.onclick = () => {
+    openScreenshotsHistory(alumne);
+  };
+  dropdownItemHist.appendChild(buttonHistory);
+  dropdownMenu.appendChild(dropdownItemHist);
+
+  // Separador
+  const dividerHist = document.createElement("li");
+  dividerHist.innerHTML = '<hr class="dropdown-divider">';
+  dropdownMenu.appendChild(dividerHist);
+
   // Botó de congelar
   const dropdownItem1 = document.createElement("li");
   const buttonFreeze = document.createElement("button");
   buttonFreeze.style.display = "none";
-  buttonFreeze.classList.add("btn", "btn-sm", "btn-primary");
+  buttonFreeze.classList.add("btn", "btn-sm", "btn-primary", "hidden-offline");
   buttonFreeze.title = "Pausa / reprèn processos a la màquina";
 
   function setButtonFreezeText(estat) {
@@ -274,7 +296,7 @@ function drawGridItem(alumne, maquina) {
   // Botó actualitzar script
   const dropdownItem2 = document.createElement("li");
   const buttonScript = document.createElement("button");
-  buttonScript.classList.add("btn", "btn-sm", "btn-dark");
+  buttonScript.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonScript.title = "Actualitza l'script de l'alumne";
   buttonScript.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-upload" viewBox="0 0 16 16">
       <path fill-rule="evenodd" d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383"/>
@@ -292,7 +314,7 @@ function drawGridItem(alumne, maquina) {
   // Botó visió incognit
   const dropdownItem3 = document.createElement("li");
   const buttonIncognito = document.createElement("button");
-  buttonIncognito.classList.add("btn", "btn-sm", "btn-dark");
+  buttonIncognito.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonIncognito.title = "Obre noVNC amb controls addicionals";
   buttonIncognito.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-incognito" viewBox="0 0 16 16">
       <path fill-rule="evenodd" d="m4.736 1.968-.892 3.269-.014.058C2.113 5.568 1 6.006 1 6.5 1 7.328 4.134 8 8 8s7-.672 7-1.5c0-.494-1.113-.932-2.83-1.205l-.014-.058-.892-3.27c-.146-.533-.698-.849-1.239-.734C9.411 1.363 8.62 1.5 8 1.5s-1.411-.136-2.025-.267c-.541-.115-1.093.2-1.239.735m.015 3.867a.25.25 0 0 1 .274-.224c.9.092 1.91.143 2.975.143a30 30 0 0 0 2.975-.143.25.25 0 0 1 .05.498c-.918.093-1.944.145-3.025.145s-2.107-.052-3.025-.145a.25.25 0 0 1-.224-.274M3.5 10h2a.5.5 0 0 1 .5.5v1a1.5 1.5 0 0 1-3 0v-1a.5.5 0 0 1 .5-.5m-1.5.5q.001-.264.085-.5H2a.5.5 0 0 1 0-1h3.5a1.5 1.5 0 0 1 1.488 1.312 3.5 3.5 0 0 1 2.024 0A1.5 1.5 0 0 1 10.5 9H14a.5.5 0 0 1 0 1h-.085q.084.236.085.5v1a2.5 2.5 0 0 1-5 0v-.14l-.21-.07a2.5 2.5 0 0 0-1.58 0l-.21.07v.14a2.5 2.5 0 0 1-5 0zm8.5-.5h2a.5.5 0 0 1 .5.5v1a1.5 1.5 0 0 1-3 0v-1a.5.5 0 0 1 .5-.5"/>
@@ -311,7 +333,7 @@ function drawGridItem(alumne, maquina) {
   // Botó copiar IP
   const dropdownItem4 = document.createElement("li");
   const buttonCopyIP = document.createElement("button");
-  buttonCopyIP.classList.add("btn", "btn-sm", "btn-dark");
+  buttonCopyIP.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonCopyIP.title = "Copia la IP al portaretalls";
   buttonCopyIP.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard2" viewBox="0 0 16 16">
       <path d="M3.5 2a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5H12a.5.5 0 0 1 0-1h.5A1.5 1.5 0 0 1 14 2.5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-12A1.5 1.5 0 0 1 3.5 1H4a.5.5 0 0 1 0 1z"/>
@@ -334,7 +356,7 @@ function drawGridItem(alumne, maquina) {
   //botó ssh
   const dropdownItemSSH = document.createElement("li");
   const buttonSSH = document.createElement("a");
-  buttonSSH.classList.add("btn", "btn-sm", "btn-dark");
+  buttonSSH.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonSSH.title = "Obre una sessió SSH de super per l'alumne";
   buttonSSH.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-terminal" viewBox="0 0 16 16">
   <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9M3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708z"/>
@@ -354,7 +376,7 @@ function drawGridItem(alumne, maquina) {
   // Botó emetre a l'alumne (obrir sidebar en mode individual)
   const dropdownItem5 = document.createElement("li");
   const buttonCastStudent = document.createElement("button");
-  buttonCastStudent.classList.add("btn", "btn-sm", "btn-primary");
+  buttonCastStudent.classList.add("btn", "btn-sm", "btn-primary", "hidden-offline");
   buttonCastStudent.title = "Emet la pantalla d'aquest alumne";
   buttonCastStudent.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-in-up" viewBox="0 0 16 16">
     <path fill-rule="evenodd" d="M3.5 10a.5.5 0 0 1-.5-.5v-8a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 0 0 1h2A1.5 1.5 0 0 0 14 9.5v-8A1.5 1.5 0 0 0 12.5 0h-9A1.5 1.5 0 0 0 2 1.5v8A1.5 1.5 0 0 0 3.5 11h2a.5.5 0 0 0 0-1z"/>
@@ -380,11 +402,17 @@ function drawGridItem(alumne, maquina) {
   if (!maquina.connected) {
     iframe.src = "";
     gridItem.classList.add("offline");
-    // Desactiva els botons
+    // Desactiva els botons que requereixen connexió
     buttonCursor.disabled = true;
-    buttonMore.disabled = true;
     buttonOff.disabled = true;
     buttonRefresh.disabled = true;
+    // buttonMore SEMPRE actiu (conté historial)
+    buttonMore.disabled = false;
+    buttonCastStudent.disabled = true;
+    buttonScript.disabled = true;
+    buttonIncognito.disabled = true;
+    buttonCopyIP.disabled = true;
+
   } else {
     iframe.setAttribute(
       "src",
@@ -396,6 +424,10 @@ function drawGridItem(alumne, maquina) {
     buttonMore.disabled = false;
     buttonOff.disabled = false;
     buttonRefresh.disabled = false;
+    buttonCastStudent.disabled = false;
+    buttonScript.disabled = false;
+    buttonIncognito.disabled = false;
+    buttonCopyIP.disabled = false;
   }
 
   iframe.setAttribute("frameborder", "0");

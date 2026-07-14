@@ -16,6 +16,7 @@ import {
 } from "../../core/store.js";
 import { initCastSidebarListeners } from "./cast-view.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { closeScreenshotsHistory } from "./screenshots-history.js";
 
 // --- Debug util ---
 function debugLog(...args) {
@@ -159,6 +160,9 @@ export async function init() {
  */
 export function destroy() {
   debugLog("DESTRUINT VISTA");
+
+  // Tancar modal d'historial si està obert
+  closeScreenshotsHistory();
 
   // Desubscriure de tots els esdeveniments del store
   for (const off of unsubscribers) {

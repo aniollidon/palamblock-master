@@ -1,0 +1,106 @@
+<!-- Modal Historial de Captures -->
+<div class="modal fade" id="modalScreenshotsHistory" tabindex="-1" aria-labelledby="modalScreenshotsHistoryLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title" id="modalScreenshotsHistoryLabel">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-clock-history me-2" viewBox="0 0 16 16">
+            <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022zm2.004.45a7 7 0 0 0-.985-.299l.219-.976q.576.129 1.126.342zm1.37.71a7 7 0 0 0-.439-.27l.482-.877q.683.383 1.29.858zm1.334 1.01a7 7 0 0 0-.23-.213l.578-.818q.791.564 1.458 1.23z"/>
+            <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2M1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8"/>
+            <path d="M8 3.5a.5.5 0 0 0-1 0V8a.5.5 0 0 0 .146.354l2 2a.5.5 0 0 0 .708-.708L8 7.793z"/>
+          </svg>
+          Historial de captures — <span id="screenshotsHistAlumneName">...</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="min-height:400px;">
+        <!-- Carregant -->
+        <div id="screenshotsHistLoading" class="text-center py-5">
+          <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Carregant...</span>
+          </div>
+          <p class="mt-2">Carregant sessions...</p>
+        </div>
+
+        <!-- Selector de sessió -->
+        <div id="screenshotsHistContent" style="display:none;">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Màquina</label>
+              <select class="form-select form-select-sm bg-dark text-light border-secondary" id="screenshotsHistMachineSelect">
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Sessió</label>
+              <select class="form-select form-select-sm bg-dark text-light border-secondary" id="screenshotsHistSessionSelect">
+              </select>
+            </div>
+          </div>
+
+          <!-- Info de la sessió -->
+          <div id="screenshotsHistSessionInfo" class="mb-2 small text-muted"></div>
+
+          <!-- Sense imatges -->
+          <div id="screenshotsHistEmpty" class="text-center py-4 text-muted" style="display:none;">
+            <p>No hi ha captures en aquesta sessió.</p>
+          </div>
+
+          <!-- Visor -->
+          <div id="screenshotsHistPlayer" style="display:none;">
+            <!-- Imatge actual -->
+            <div class="text-center mb-2 position-relative" id="screenshotsHistImageContainer" style="background:#000;border-radius:6px;overflow:hidden;cursor:pointer;">
+              <img id="screenshotsHistImage" src="" alt="Captura" style="max-width:100%;max-height:55vh;object-fit:contain;" />
+              <!-- Overlay de timestamp -->
+              <div id="screenshotsHistTimestamp" class="position-absolute bottom-0 start-0 m-2 px-2 py-1 bg-dark bg-opacity-75 rounded small"></div>
+              <!-- Botó fullscreen -->
+              <button id="screenshotsHistFullscreenBtn" class="btn btn-sm btn-dark position-absolute top-0 end-0 m-2" title="Pantalla completa">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrows-fullscreen" viewBox="0 0 16 16">
+                  <path fill-rule="evenodd" d="M5.828 10.172a.5.5 0 0 0-.707 0l-4.096 4.096V11.5a.5.5 0 0 0-1 0v3.975a.5.5 0 0 0 .5.5H4.5a.5.5 0 0 0 0-1H1.732l4.096-4.096a.5.5 0 0 0 0-.707m4.344 0a.5.5 0 0 1 .707 0l4.096 4.096V11.5a.5.5 0 1 1 1 0v3.975a.5.5 0 0 1-.5.5H11.5a.5.5 0 0 1 0-1h2.768l-4.096-4.096a.5.5 0 0 1 0-.707m0-4.344a.5.5 0 0 0 .707 0l4.096-4.096V4.5a.5.5 0 1 0 1 0V.525a.5.5 0 0 0-.5-.5H11.5a.5.5 0 0 0 0 1h2.768l-4.096 4.096a.5.5 0 0 0 0 .707m-4.344 0a.5.5 0 0 1-.707 0L1.025 1.732V4.5a.5.5 0 0 1-1 0V.525a.5.5 0 0 1 .5-.5H4.5a.5.5 0 0 1 0 1H1.732l4.096 4.096a.5.5 0 0 1 0 .707"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Controls de reproducció -->
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-2 p-2 bg-secondary bg-opacity-10 rounded">
+              <button id="screenshotsHistPrevBtn" class="btn btn-sm btn-dark" title="Anterior">⏮</button>
+              <button id="screenshotsHistPlayBtn" class="btn btn-sm btn-primary" title="Reproduir / Pausa">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16">
+                  <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+                </svg>
+              </button>
+              <button id="screenshotsHistNextBtn" class="btn btn-sm btn-dark" title="Següent">⏭</button>
+              <span class="text-muted mx-1">|</span>
+              <span class="small text-muted" id="screenshotsHistFrameInfo">0 / 0</span>
+              <span class="text-muted mx-1">|</span>
+              <label class="small text-muted mb-0">Velocitat:</label>
+              <select id="screenshotsHistSpeedSelect" class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto;">
+                <option value="2000">Lent (2s)</option>
+                <option value="500" selected>Normal (0,5s)</option>
+                <option value="200">Ràpid (0,2s)</option>
+              </select>
+            </div>
+
+            <!-- Barra de progrés -->
+            <div class="mb-2">
+              <input type="range" class="form-range" id="screenshotsHistProgressBar" min="0" max="100" value="0" style="cursor:pointer;" />
+            </div>
+
+            <!-- Thumbnails -->
+            <div id="screenshotsHistThumbnails" class="d-flex gap-1 overflow-auto pb-2" style="max-height:100px;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tancar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen overlay per la imatge -->
+<div id="screenshotsHistFullscreenOverlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9999;cursor:pointer;">
+  <img id="screenshotsHistFullscreenImg" src="" alt="Captura pantalla completa" style="width:100%;height:100%;object-fit:contain;" />
+  <button id="screenshotsHistFullscreenClose" class="btn btn-sm btn-dark position-absolute top-0 end-0 m-3" title="Tancar">✕</button>
+  <div id="screenshotsHistFullscreenTimestamp" class="position-absolute bottom-0 start-0 m-3 px-2 py-1 bg-dark bg-opacity-75 rounded small text-light"></div>
+</div>

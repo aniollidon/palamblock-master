@@ -58,7 +58,7 @@
     position: absolute;
 }
 
-.offline .btn{
+.offline .hidden-offline{
     background-color: #d5d5d5;
     color: white;
     border: gray;
