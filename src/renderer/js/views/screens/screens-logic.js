@@ -3,6 +3,7 @@ import {
   updateCastStudentData,
 } from "./cast-view.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { getState } from "../../core/store.js";
 import { openScreenshotsHistory } from "./screenshots-history.js";
 
 let grupAlumnesList = {};
@@ -237,7 +238,7 @@ function drawGridItem(alumne, maquina) {
   const buttonHistory = document.createElement("button");
   buttonHistory.classList.add("btn", "btn-sm", "btn-dark");
   buttonHistory.title = "Historial de captures de pantalla";
-  buttonHistory.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-clock-history" viewBox="0 0 16 16">
+  buttonHistory.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clock-history" viewBox="0 0 16 16">
     <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"></path>
     <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"></path>
     <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"></path>
@@ -247,11 +248,6 @@ function drawGridItem(alumne, maquina) {
   };
   dropdownItemHist.appendChild(buttonHistory);
   dropdownMenu.appendChild(dropdownItemHist);
-
-  // Separador
-  const dividerHist = document.createElement("li");
-  dividerHist.innerHTML = '<hr class="dropdown-divider">';
-  dropdownMenu.appendChild(dividerHist);
 
   // Botó de congelar
   const dropdownItem1 = document.createElement("li");
@@ -293,9 +289,10 @@ function drawGridItem(alumne, maquina) {
   dropdownItem1.appendChild(buttonFreeze);
   dropdownMenu.appendChild(dropdownItem1);
 
-  // Botó actualitzar script
+  // Botó actualitzar script // deprecated
   const dropdownItem2 = document.createElement("li");
   const buttonScript = document.createElement("button");
+  buttonScript.style.display = "none";
   buttonScript.classList.add("btn", "btn-sm", "btn-dark", "hidden-offline");
   buttonScript.title = "Actualitza l'script de l'alumne";
   buttonScript.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-upload" viewBox="0 0 16 16">
@@ -462,6 +459,24 @@ function drawGridItem(alumne, maquina) {
 
   gridItemContentScreen.appendChild(overlay);
   gridItemContentScreen.appendChild(iframe);
+
+  // Advertiment de xarxa no esperada per l'alumne
+  const expectedNetwork = getState().expectedNetwork;
+  if (
+    expectedNetwork &&
+    maquina.wifi_ssid &&
+    maquina.wifi_ssid !== "unknown" &&
+    maquina.wifi_ssid !== expectedNetwork
+  ) {
+    const networkWarning = document.createElement("div");
+    networkWarning.classList.add("network-warning-icon");
+    networkWarning.title = `Connectat a la xarxa ${maquina.wifi_ssid}`;
+    networkWarning.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <path d="M10.706 3.294A12.6 12.6 0 0 0 8 3C5.259 3 2.723 3.882.663 5.379a.485.485 0 0 0-.048.736.52.52 0 0 0 .668.05A11.45 11.45 0 0 1 8 4q.946 0 1.852.148zM8 6c-1.905 0-3.68.56-5.166 1.526a.48.48 0 0 0-.063.745.525.525 0 0 0 .652.065 8.45 8.45 0 0 1 3.51-1.27zm2.596 1.404.785-.785q.947.362 1.785.907a.482.482 0 0 1 .063.745.525.525 0 0 1-.652.065 8.5 8.5 0 0 0-1.98-.932zM8 10l.933-.933a6.5 6.5 0 0 1 2.013.637c.285.145.326.524.1.75l-.015.015a.53.53 0 0 1-.611.09A5.5 5.5 0 0 0 8 10m4.905-4.905.747-.747q.886.451 1.685 1.03a.485.485 0 0 1 .047.737.52.52 0 0 1-.668.05 11.5 11.5 0 0 0-1.811-1.07M9.02 11.78c.238.14.236.464.04.66l-.707.706a.5.5 0 0 1-.707 0l-.707-.707c-.195-.195-.197-.518.04-.66A2 2 0 0 1 8 11.5c.374 0 .723.102 1.021.28zm4.355-9.905a.53.53 0 0 1 .75.75l-10.75 10.75a.53.53 0 0 1-.75-.75z"/>
+    </svg>`;
+    gridItemContentScreen.appendChild(networkWarning);
+  }
+
   gridItem.appendChild(gridItemContentScreen);
 
   return gridItem;

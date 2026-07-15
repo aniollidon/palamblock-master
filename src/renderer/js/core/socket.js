@@ -3,7 +3,7 @@
  * Centralitza la creació, configuració i gestió del socket.io
  */
 
-import { attachAdminSocket, requestInitialData, getState } from "./store.js";
+import { attachAdminSocket, requestInitialData, getState, emit } from "./store.js";
 
 /**
  * SocketManager - Gestiona les connexions socket amb dependency injection
@@ -141,6 +141,10 @@ export class SocketManager {
       if (this.authManager) {
         this.authManager.adminRole = data?.role || 'admin';
         this.authManager.adminGrupsPermesos = data?.grupsPermesos || [];
+      }
+      // Propagar expectedNetwork al store (abans que attachAdminSocket registri el listener)
+      if (data && typeof data.expectedNetwork !== 'undefined') {
+        emit('expectedNetwork', data.expectedNetwork || null);
       }
     });
 

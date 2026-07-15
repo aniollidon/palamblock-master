@@ -68,7 +68,27 @@
     margin: 0 0 5px 5px;
 }
 
+.grid-item-content-screen {
+    position: relative;
+}
+
+.network-warning-icon {
+    position: absolute;
+    bottom: 10px;
+    right: 4px;
+    color: #ffffff;
+    opacity: 0.85;
+    cursor: help;
+    z-index: 10;
+    line-height: 1;
+}
+
+.network-warning-icon:hover {
+    opacity: 1;
+}
+
 .extra-item-buttons > ul{
     min-width: auto;
     padding-bottom: 3px;
+    padding-right: 4px;
 }

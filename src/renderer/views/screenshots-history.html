@@ -24,17 +24,10 @@
 
         <!-- Selector de sessió -->
         <div id="screenshotsHistContent" style="display:none;">
-          <div class="row mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Màquina</label>
-              <select class="form-select form-select-sm bg-dark text-light border-secondary" id="screenshotsHistMachineSelect">
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Sessió</label>
-              <select class="form-select form-select-sm bg-dark text-light border-secondary" id="screenshotsHistSessionSelect">
-              </select>
-            </div>
+          <div class="mb-3">
+            <label class="form-label">Sessió</label>
+            <select class="form-select form-select-sm bg-dark text-light border-secondary" id="screenshotsHistSessionSelect">
+            </select>
           </div>
 
           <!-- Info de la sessió -->
@@ -83,10 +76,6 @@
             <!-- Barra de progrés -->
             <div class="mb-2">
               <input type="range" class="form-range" id="screenshotsHistProgressBar" min="0" max="100" value="0" style="cursor:pointer;" />
-            </div>
-
-            <!-- Thumbnails -->
-            <div id="screenshotsHistThumbnails" class="d-flex gap-1 overflow-auto pb-2" style="max-height:100px;">
             </div>
           </div>
         </div>

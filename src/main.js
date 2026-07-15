@@ -246,6 +246,39 @@ ipcMain.handle("open-external", async (event, url) => {
   }
 });
 
+// Obtenir el SSID de la xarxa WiFi actual (per comprovar xarxa esperada)
+const { execFile } = require("child_process");
+const util = require("util");
+const execFileAsync = util.promisify(execFile);
+
+ipcMain.handle("get-current-ssid", async () => {
+  try {
+    if (process.platform === "win32") {
+      // Windows: netsh wlan show interfaces
+      const { stdout } = await execFileAsync("netsh", ["wlan", "show", "interfaces"]);
+      const match = stdout.match(/^\s*SSID\s*:\s*(.+)$/m);
+      return match ? match[1].trim() : null;
+    } else if (process.platform === "linux") {
+      // Linux: nmcli
+      try {
+        const { stdout } = await execFileAsync("nmcli", ["-t", "-f", "active,ssid", "dev", "wifi"]);
+        const line = stdout.split("\n").map(s => s.trim()).find(s => s.startsWith("yes:"));
+        if (line) return line.slice(4).trim();
+      } catch (_) { /* nmcli failed, try iwgetid */ }
+      // Fallback: iwgetid
+      try {
+        const { stdout } = await execFileAsync("iwgetid", ["-r"]);
+        return stdout.trim();
+      } catch (_) { /* no wireless tools */ }
+      return null;
+    }
+    return null;
+  } catch (e) {
+    console.error("get-current-ssid error:", e.message);
+    return null;
+  }
+});
+
 // ========================================
 // AUTO-UPDATER - Gestió d'actualitzacions
 // ========================================

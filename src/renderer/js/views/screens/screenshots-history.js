@@ -36,19 +36,13 @@ function ensureModalInDOM() {
           <p class="mt-2">Carregant sessions...</p>
         </div>
         <div id="screenshotsHistContent" style="display:none;">
-          <div class="row mb-3">
-            <div class="col-md-6">
-              <label class="form-label">Màquina</label>
-              <select class="form-select form-select-sm" id="screenshotsHistMachineSelect"></select>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Sessió</label>
-              <div class="d-flex gap-1">
-                <select class="form-select form-select-sm" id="screenshotsHistSessionSelect"></select>
-                <button class="btn btn-sm btn-outline-secondary" id="screenshotsHistRefreshBtn" title="Refrescar">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-repeat" viewBox="0 0 16 16"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/></svg>
-                </button>
-              </div>
+          <div class="mb-3">
+            <label class="form-label">Sessió</label>
+            <div class="d-flex gap-1">
+              <select class="form-select form-select-sm" id="screenshotsHistSessionSelect"></select>
+              <button class="btn btn-sm btn-outline-secondary" id="screenshotsHistRefreshBtn" title="Refrescar">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-arrow-repeat" viewBox="0 0 16 16"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/></svg>
+              </button>
             </div>
           </div>
           <div id="screenshotsHistSessionInfo" class="mb-2 small text-muted"></div>
@@ -82,7 +76,6 @@ function ensureModalInDOM() {
               </select>
             </div>
             <div class="mb-2"><input type="range" class="form-range" id="screenshotsHistProgressBar" min="0" max="100" value="0" style="cursor:pointer;" /></div>
-            <div id="screenshotsHistThumbnails" class="d-flex gap-1 overflow-auto pb-2" style="max-height:100px;"></div>
           </div>
         </div>
       </div>
@@ -166,6 +159,15 @@ function formatTimeShort(isoString) {
   return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
+function isToday(isoString) {
+  if (!isoString) return false;
+  const d = new Date(isoString);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+}
+
 function formatSessionLabel(session) {
   const images = session.images || [];
   let timeRange = "--:-- – --:--";
@@ -173,7 +175,14 @@ function formatSessionLabel(session) {
     timeRange = formatTimeShort(images[0].timestamp) + "–" + formatTimeShort(images[images.length - 1].timestamp);
   }
   const name = session.displayName || session.user || session.sessionId || "?";
-  return timeRange + " " + name;
+  let label = timeRange + " " + name;
+  // Afegir data si la sessió no és d'avui
+  if (!isToday(session.startedAt) && session.startedAt) {
+    const d = new Date(session.startedAt);
+    const dateStr = String(d.getDate()).padStart(2, '0') + "/" + String(d.getMonth() + 1).padStart(2, '0') + "/" + d.getFullYear();
+    label += " · " + dateStr;
+  }
+  return label;
 }
 
 function getBaseUrl() {
@@ -201,7 +210,6 @@ function dom() {
     modalLabel: $("screenshotsHistAlumneName"),
     loading: $("screenshotsHistLoading"),
     content: $("screenshotsHistContent"),
-    machineSelect: $("screenshotsHistMachineSelect"),
     sessionSelect: $("screenshotsHistSessionSelect"),
     refreshBtn: $("screenshotsHistRefreshBtn"),
     sessionInfo: $("screenshotsHistSessionInfo"),
@@ -216,7 +224,6 @@ function dom() {
     frameInfo: $("screenshotsHistFrameInfo"),
     speedSelect: $("screenshotsHistSpeedSelect"),
     progressBar: $("screenshotsHistProgressBar"),
-    thumbnails: $("screenshotsHistThumbnails"),
     imageContainer: $("screenshotsHistImageContainer"),
     fullscreenOverlay: $("screenshotsHistFullscreenOverlay"),
     fullscreenImg: $("screenshotsHistFullscreenImg"),
@@ -251,8 +258,9 @@ async function refreshCurrentSession() {
   const d = dom();
   stopPlayback();
 
-  // Desa seleccions actuals
-  const savedMachineId = d.machineSelect.value;
+  // Desa selecció actual
+  const savedOption = d.sessionSelect.selectedOptions[0];
+  const savedMachineId = savedOption ? savedOption.getAttribute("data-machine") : null;
   const savedSessionId = d.sessionSelect.value;
 
   try {
@@ -260,18 +268,17 @@ async function refreshCurrentSession() {
     if (resp.status !== "OK") return;
     currentData = resp.data;
 
-    // Restaura seleccions
-    populateMachineSelect(currentData.machines);
+    // Reconstruir llista plana
+    const flatSessions = flattenAndSortSessions(currentData.machines);
+    populateFlatSessionSelect(flatSessions);
 
-    if (savedMachineId && currentData.machines[savedMachineId]) {
-      d.machineSelect.value = savedMachineId;
-      onMachineChange();
-      if (savedSessionId) {
-        const sessions = currentData.machines[savedMachineId]?.sessions || [];
-        const found = sessions.find(s => s.sessionId === savedSessionId);
-        if (found) {
+    // Restaurar selecció
+    if (savedMachineId && savedSessionId) {
+      for (const opt of d.sessionSelect.options) {
+        if (opt.value === savedSessionId && opt.getAttribute("data-machine") === savedMachineId) {
           d.sessionSelect.value = savedSessionId;
           onSessionChange();
+          break;
         }
       }
     }
@@ -280,52 +287,54 @@ async function refreshCurrentSession() {
   }
 }
 
-// ─── Selecció de màquina/sessió ──────────────────────────────────
+// ─── Selecció de sessió (plana, sense selector de màquina) ──────
 
-function populateMachineSelect(machines) {
-  const d = dom();
-  d.machineSelect.innerHTML = "";
-  const machineIds = Object.keys(machines);
-  if (machineIds.length === 0) {
-    d.machineSelect.innerHTML = '<option value="">Cap màquina</option>';
-    return;
+/**
+ * Aplana totes les sessions de totes les màquines en un sol array,
+ * afegint machineId a cada sessió, i ordena per startedAt desc.
+ */
+function flattenAndSortSessions(machines) {
+  const flat = [];
+  for (const [machineId, machineData] of Object.entries(machines)) {
+    const sessions = machineData.sessions || [];
+    for (const session of sessions) {
+      flat.push({
+        ...session,
+        _machineId: machineId,
+      });
+    }
   }
-  for (const mid of machineIds) {
-    const opt = document.createElement("option");
-    opt.value = mid;
-    opt.textContent = mid;
-    d.machineSelect.appendChild(opt);
-  }
-  d.machineSelect.value = machineIds[0];
-  onMachineChange();
+  flat.sort((a, b) => {
+    const da = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+    const db = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+    return db - da; // més recent primer
+  });
+  return flat;
 }
 
-function onMachineChange() {
+function populateFlatSessionSelect(flatSessions) {
   const d = dom();
-  const machineId = d.machineSelect.value;
-  if (!machineId || !currentData || !currentData.machines[machineId]) return;
-  currentMachineId = machineId;
-
-  const sessions = currentData.machines[machineId].sessions || [];
   d.sessionSelect.innerHTML = "";
-  if (sessions.length === 0) {
+  if (flatSessions.length === 0) {
     d.sessionSelect.innerHTML = '<option value="">Cap sessió</option>';
     hidePlayer();
     return;
   }
-  for (const session of sessions) {
+  for (const session of flatSessions) {
     const opt = document.createElement("option");
     opt.value = session.sessionId;
+    opt.setAttribute("data-machine", session._machineId);
     opt.textContent = formatSessionLabel(session) + ` (${session.imageCount} img)`;
     d.sessionSelect.appendChild(opt);
   }
-  d.sessionSelect.value = sessions[0].sessionId;
+  d.sessionSelect.value = flatSessions[0].sessionId;
   onSessionChange();
 }
 
 function onSessionChange() {
   const d = dom();
-  const machineId = d.machineSelect.value;
+  const selectedOpt = d.sessionSelect.selectedOptions[0];
+  const machineId = selectedOpt ? selectedOpt.getAttribute("data-machine") : null;
   const sessionId = d.sessionSelect.value;
   if (!machineId || !sessionId || !currentData) return;
 
@@ -354,7 +363,6 @@ function onSessionChange() {
   d.empty.style.display = "none";
   d.player.style.display = "block";
   goToFrame(0);
-  renderThumbnails();
 }
 
 function hidePlayer() {
@@ -379,8 +387,6 @@ function goToFrame(index) {
   d.progressBar.value = currentImages.length > 1
     ? Math.round((currentFrameIndex / (currentImages.length - 1)) * 100)
     : 0;
-
-  highlightThumbnail(currentFrameIndex);
 
   // Sincronitzar fullscreen si està obert
   syncFullscreenImage();
@@ -469,38 +475,6 @@ function updatePlayButton() {
   }
   // Sincronitzar botó del fullscreen
   updateFullscreenPlayButton();
-}
-
-// ─── Thumbnails ──────────────────────────────────────────────────
-
-function renderThumbnails() {
-  const d = dom();
-  d.thumbnails.innerHTML = "";
-  if (currentImages.length === 0) return;
-
-  for (let i = 0; i < currentImages.length; i++) {
-    const img = currentImages[i];
-    const thumb = document.createElement("img");
-    thumb.src = resolveImageUrl(img.url);
-    thumb.setAttribute("data-frame", i);
-    thumb.style.cssText = "width:60px;height:34px;object-fit:cover;border-radius:3px;cursor:pointer;border:2px solid transparent;flex-shrink:0;";
-    if (i === currentFrameIndex) {
-      thumb.style.borderColor = "#0d6efd";
-    }
-    thumb.title = formatTimestamp(img.timestamp);
-    thumb.addEventListener("click", () => {
-      stopPlayback();
-      goToFrame(i);
-    });
-    d.thumbnails.appendChild(thumb);
-  }
-}
-
-function highlightThumbnail(index) {
-  const allThumbs = document.querySelectorAll("#screenshotsHistThumbnails img");
-  allThumbs.forEach((t, i) => {
-    t.style.borderColor = (i === index) ? "#0d6efd" : "transparent";
-  });
 }
 
 // ─── Fullscreen ──────────────────────────────────────────────────
@@ -878,7 +852,6 @@ function bindEvents() {
 
   const d = dom();
 
-  d.machineSelect.addEventListener("change", onMachineChange);
   d.sessionSelect.addEventListener("change", onSessionChange);
   d.refreshBtn.addEventListener("click", refreshCurrentSession);
 
@@ -1017,16 +990,15 @@ export async function openScreenshotsHistory(alumne) {
     d.loading.style.display = "none";
     d.content.style.display = "block";
 
-    // Si no hi ha màquines, mostrar missatge
-    const machineIds = Object.keys(currentData.machines || {});
-    if (machineIds.length === 0) {
-      d.machineSelect.innerHTML = '<option value="">Cap màquina amb captures</option>';
+    // Construir llista plana de sessions
+    const flatSessions = flattenAndSortSessions(currentData.machines || {});
+    if (flatSessions.length === 0) {
       d.sessionSelect.innerHTML = '<option value="">Cap sessió</option>';
       d.sessionInfo.innerHTML = "Aquest alumne no té captures de pantalla.";
       return;
     }
 
-    populateMachineSelect(currentData.machines);
+    populateFlatSessionSelect(flatSessions);
   } catch (err) {
     console.error("[SCREENSHOTS_HIST] Error carregant:", err);
     d.loading.innerHTML = `<p class="text-danger">Error carregant dades: ${err.message}</p>`;

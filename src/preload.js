@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // APIs per a la comunicació amb el servidor PalamSRV
   onServerMessage: (callback) => ipcRenderer.on("server-message", callback),
   removeServerListeners: () => ipcRenderer.removeAllListeners("server-message"),
+
+  // Detecció de xarxa WiFi actual (per comprovar xarxa esperada)
+  getCurrentSSID: () => ipcRenderer.invoke("get-current-ssid"),
 });
 
 // APIs específiques per PalamBlock

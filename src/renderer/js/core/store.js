@@ -13,6 +13,7 @@ const state = {
   eachBrowserLastUsage: {},
   historialHostsSortedByUsage: {},
   alumnesMachine: null,
+  expectedNetwork: null,
 };
 
 // Mapa de listeners: event -> Set<callback>
@@ -123,6 +124,13 @@ export function attachAdminSocket(sock) {
   };
 
   // Registrar esdeveniments del servidor
+  onEvt('roleInfo', (data) => {
+    if (data && typeof data.expectedNetwork !== 'undefined') {
+      state.expectedNetwork = data.expectedNetwork || null;
+      emit('expectedNetwork', state.expectedNetwork);
+    }
+  });
+
   onEvt('grupAlumnesList', (data) => {
     state.grupAlumnesList = data || {};
     emit('grupAlumnesList', state.grupAlumnesList);
@@ -188,6 +196,12 @@ export function attachAdminSocket(sock) {
 
   console.log('[STORE] Socket admin adjuntat amb èxit');
 }
+
+// Auto-listener: actualitzar state quan es rep l'event expectedNetwork
+// (pot venir tant del socket roleInfo com del SocketManager)
+on('expectedNetwork', (network) => {
+  state.expectedNetwork = network;
+});
 
 /**
  * Desconnecta el socket actual i neteja listeners
