@@ -324,7 +324,7 @@ function populateFlatSessionSelect(flatSessions) {
     const opt = document.createElement("option");
     opt.value = session.sessionId;
     opt.setAttribute("data-machine", session._machineId);
-    opt.textContent = formatSessionLabel(session) + ` (${session.imageCount} img)`;
+    opt.textContent = formatSessionLabel(session);
     d.sessionSelect.appendChild(opt);
   }
   d.sessionSelect.value = flatSessions[0].sessionId;
