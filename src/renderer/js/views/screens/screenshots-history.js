@@ -92,12 +92,23 @@ function ensureModalInDOM() {
     </div>
   </div>
 </div>
-<div id="screenshotsHistFullscreenOverlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9999;overflow:auto;cursor:grab;">
-  <div id="screenshotsHistFullscreenWrapper" style="display:flex;align-items:flex-start;justify-content:center;min-width:100%;min-height:100%;">
-    <img id="screenshotsHistFullscreenImg" src="" alt="Captura pantalla completa" style="display:block;cursor:grab;user-select:none;" draggable="false" />
+<div id="screenshotsHistFullscreenOverlay" class="screenshots-hist-fs-overlay" style="display:none;">
+  <img id="screenshotsHistFullscreenImg" src="" alt="Captura pantalla completa"
+    style="position:absolute;top:0;left:0;user-select:none;" />
+  <div id="screenshotsHistFullscreenTimestamp" class="screenshots-hist-fs-timestamp">...</div>
+  <button id="screenshotsHistFullscreenClose" class="screenshots-hist-fs-close" title="Tancar (ESC)">✕</button>
+  <div id="screenshotsHistFullscreenControls" class="screenshots-hist-fs-controls visible">
+    <button id="screenshotsHistFsPrevBtn" class="screenshots-hist-fs-ctrl-btn" title="Anterior">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M4 4a.5.5 0 0 1 1 0v3.248l6.267-3.636c.54-.313 1.232.066 1.232.696v7.384c0 .63-.692 1.01-1.232.697L5 8.753V12a.5.5 0 0 1-1 0z"/></svg>
+    </button>
+    <button id="screenshotsHistFsPlayBtn" class="screenshots-hist-fs-ctrl-btn" title="Reproduir / Pausa">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>
+    </button>
+    <button id="screenshotsHistFsNextBtn" class="screenshots-hist-fs-ctrl-btn" title="Següent">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M12.5 4a.5.5 0 0 0-1 0v3.248L5.233 3.612C4.693 3.3 4 3.678 4 4.308v7.384c0 .63.692 1.01 1.233.697L11.5 8.753V12a.5.5 0 0 0 1 0z"/></svg>
+    </button>
+    <span id="screenshotsHistFsFrameInfo" class="screenshots-hist-fs-frameinfo">0 / 0</span>
   </div>
-  <button id="screenshotsHistFullscreenClose" class="btn btn-sm btn-dark position-fixed top-0 end-0 m-3" title="Tancar" style="z-index:1;">✕</button>
-  <div id="screenshotsHistFullscreenTimestamp" class="position-fixed bottom-0 start-0 m-3 px-2 py-1 bg-dark bg-opacity-75 rounded small text-white" style="z-index:1;"></div>
 </div>`;
 
   const container = document.createElement("div");
@@ -208,12 +219,14 @@ function dom() {
     thumbnails: $("screenshotsHistThumbnails"),
     imageContainer: $("screenshotsHistImageContainer"),
     fullscreenOverlay: $("screenshotsHistFullscreenOverlay"),
-    fullscreenWrapper: $("screenshotsHistFullscreenWrapper"),
     fullscreenImg: $("screenshotsHistFullscreenImg"),
     fullscreenTimestamp: $("screenshotsHistFullscreenTimestamp"),
     fullscreenClose: $("screenshotsHistFullscreenClose"),
-    fullscreenZoomInBtn: $("screenshotsHistFullscreenZoomInBtn"),
-    fullscreenZoomOutBtn: $("screenshotsHistFullscreenZoomOutBtn"),
+    fullscreenControls: $("screenshotsHistFullscreenControls"),
+    fsPrevBtn: $("screenshotsHistFsPrevBtn"),
+    fsPlayBtn: $("screenshotsHistFsPlayBtn"),
+    fsNextBtn: $("screenshotsHistFsNextBtn"),
+    fsFrameInfo: $("screenshotsHistFsFrameInfo"),
   };
 }
 
@@ -367,8 +380,36 @@ function goToFrame(index) {
     ? Math.round((currentFrameIndex / (currentImages.length - 1)) * 100)
     : 0;
 
-  // Highlight thumbnail actiu
   highlightThumbnail(currentFrameIndex);
+
+  // Sincronitzar fullscreen si està obert
+  syncFullscreenImage();
+}
+
+function syncFullscreenImage() {
+  const d = dom();
+  if (d.fullscreenOverlay.style.display !== "block") return;
+  if (currentImages.length === 0) return;
+  const img = currentImages[currentFrameIndex];
+
+  // Reset zoom/pan en canviar de frame
+  resetFullscreenTransform();
+
+  d.fullscreenImg.src = resolveImageUrl(img.url);
+  d.fullscreenTimestamp.textContent = formatTimestamp(img.timestamp);
+  updateFullscreenFrameInfo();
+
+  // Reaplicar transformació quan la nova imatge es carregui
+  d.fullscreenImg.onload = () => {
+    fsImgNaturalW = d.fullscreenImg.naturalWidth;
+    fsImgNaturalH = d.fullscreenImg.naturalHeight;
+    applyFullscreenTransform(true);
+  };
+  if (d.fullscreenImg.complete) {
+    fsImgNaturalW = d.fullscreenImg.naturalWidth;
+    fsImgNaturalH = d.fullscreenImg.naturalHeight;
+    applyFullscreenTransform(true);
+  }
 }
 
 function startPlayback() {
@@ -414,15 +455,20 @@ function togglePlayPause() {
 
 function updatePlayButton() {
   const d = dom();
+  const playHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16">
+    <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+  </svg>`;
+  const pauseHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16">
+    <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+  </svg>`;
+
   if (isPlaying) {
-    d.playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16">
-      <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
-    </svg>`;
+    d.playBtn.innerHTML = pauseHTML;
   } else {
-    d.playBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16">
-      <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
-    </svg>`;
+    d.playBtn.innerHTML = playHTML;
   }
+  // Sincronitzar botó del fullscreen
+  updateFullscreenPlayButton();
 }
 
 // ─── Thumbnails ──────────────────────────────────────────────────
@@ -459,95 +505,363 @@ function highlightThumbnail(index) {
 
 // ─── Fullscreen ──────────────────────────────────────────────────
 
-let fullscreenZoom = 1;
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let scrollStartX = 0;
-let scrollStartY = 0;
+let fsControlsTimer = null;
+const FS_CONTROLS_HIDE_DELAY = 3000; // ms d'inactivitat abans d'amagar
+const FS_ZOOM_MIN = 1;        // Zoom mínim: la imatge sempre omple la pantalla
+const FS_ZOOM_MAX = 8;
+const FS_ZOOM_STEP = 0.2;
+
+let fsZoom = FS_ZOOM_MIN;
+let fsPanX = 0;  // px de desplaçament respecte al centre
+let fsPanY = 0;
+let fsImgNaturalW = 0;
+let fsImgNaturalH = 0;
 
 function openImageFullscreen() {
   if (currentImages.length === 0) return;
   const d = dom();
   const img = currentImages[currentFrameIndex];
-  fullscreenZoom = 1;
+
+  // Reset de zoom i pan
+  fsZoom = FS_ZOOM_MIN;
+  fsPanX = 0;
+  fsPanY = 0;
+
   d.fullscreenImg.src = resolveImageUrl(img.url);
-  d.fullscreenImg.style.width = "auto";
-  d.fullscreenImg.style.height = "auto";
-  d.fullscreenImg.style.maxWidth = "none";
-  d.fullscreenImg.style.maxHeight = "none";
-  d.fullscreenImg.style.transform = "scale(1)";
-  d.fullscreenImg.style.transformOrigin = "top left";
   d.fullscreenTimestamp.textContent = formatTimestamp(img.timestamp);
   d.fullscreenOverlay.style.display = "block";
-  d.fullscreenOverlay.scrollTop = 0;
-  d.fullscreenOverlay.scrollLeft = 0;
+
+  // Quan la imatge es carregui, obtenim les dimensions naturals
+  d.fullscreenImg.onload = () => {
+    fsImgNaturalW = d.fullscreenImg.naturalWidth;
+    fsImgNaturalH = d.fullscreenImg.naturalHeight;
+    applyFullscreenTransform(true);
+  };
+  // Per si la imatge ja està en caché
+  if (d.fullscreenImg.complete) {
+    fsImgNaturalW = d.fullscreenImg.naturalWidth;
+    fsImgNaturalH = d.fullscreenImg.naturalHeight;
+    applyFullscreenTransform(true);
+  }
+
+  updateFullscreenFrameInfo();
+  updateFullscreenPlayButton();
+
+  showFullscreenControls();
+
+  // Entrar a pantalla completa real (API del navegador)
+  d.fullscreenOverlay.requestFullscreen().catch(err => {
+    console.warn("[SCREENSHOTS_HIST] No s'ha pogut entrar a pantalla completa:", err);
+  });
 }
 
 function closeImageFullscreen() {
-  const d = dom();
-  d.fullscreenOverlay.style.display = "none";
-  fullscreenZoom = 1;
-  isDragging = false;
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+  hideFullscreenOverlay();
 }
 
-function zoomFullscreen(delta) {
+function hideFullscreenOverlay() {
   const d = dom();
-  fullscreenZoom = Math.max(0.25, Math.min(5, fullscreenZoom + delta));
-  d.fullscreenImg.style.transform = `scale(${fullscreenZoom})`;
+  d.fullscreenOverlay.style.display = "none";
+  clearFullscreenControlsTimer();
+}
+
+// ─── Zoom i pan ──────────────────────────────────────────────────
+
+function resetFullscreenTransform() {
+  fsZoom = FS_ZOOM_MIN;
+  fsPanX = 0;
+  fsPanY = 0;
+}
+
+function applyFullscreenTransform(resetPan) {
+  const d = dom();
+  if (!fsImgNaturalW || !fsImgNaturalH) return;
+  if (resetPan) { fsPanX = 0; fsPanY = 0; }
+
+  // Clampar el pan perquè la imatge mai deixi espai buit al viewport
+  clampPanToImageBounds();
+
+  // Escala "fit to screen" com a base
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const fitScale = Math.min(vw / fsImgNaturalW, vh / fsImgNaturalH);
+  const totalScale = fitScale * fsZoom;
+
+  // La imatge escalada a mida real
+  const scaledW = fsImgNaturalW * totalScale;
+  const scaledH = fsImgNaturalH * totalScale;
+
+  // Posició centrada + pan
+  const left = (vw - scaledW) / 2 + fsPanX;
+  const top = (vh - scaledH) / 2 + fsPanY;
+
+  d.fullscreenImg.style.width = fsImgNaturalW + "px";
+  d.fullscreenImg.style.height = fsImgNaturalH + "px";
+  d.fullscreenImg.style.maxWidth = "none";
+  d.fullscreenImg.style.maxHeight = "none";
+  d.fullscreenImg.style.transformOrigin = "top left";
+  d.fullscreenImg.style.position = "absolute";
+  d.fullscreenImg.style.top = top + "px";
+  d.fullscreenImg.style.left = left + "px";
+  d.fullscreenImg.style.transform = `scale(${totalScale})`;
+}
+
+function clampPanToImageBounds() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const fitScale = Math.min(vw / fsImgNaturalW, vh / fsImgNaturalH);
+  const totalScale = fitScale * fsZoom;
+  const scaledW = fsImgNaturalW * totalScale;
+  const scaledH = fsImgNaturalH * totalScale;
+
+  // La imatge sempre ha de cobrir el viewport: els marges de la imatge
+  // no poden entrar dins del viewport (no pot quedar espai negre als costats).
+  // Això vol dir que el vora esquerre de la imatge ha de ser <= 0
+  // i el vora dret >= vw. El mateix per dalt/baix.
+  const maxPanX = Math.max(0, (scaledW - vw) / 2);
+  const maxPanY = Math.max(0, (scaledH - vh) / 2);
+
+  // Quan scaledW <= vw, la imatge és més petita que el viewport en amplada,
+  // llavors el pan horitzontal es limita perquè no quedi espai negre.
+  if (scaledW <= vw) {
+    // La imatge es centra horitzontalment, no es pot moure
+    fsPanX = 0;
+  } else {
+    fsPanX = Math.max(-maxPanX, Math.min(maxPanX, fsPanX));
+  }
+
+  if (scaledH <= vh) {
+    fsPanY = 0;
+  } else {
+    fsPanY = Math.max(-maxPanY, Math.min(maxPanY, fsPanY));
+  }
+}
+
+function zoomFullscreen(delta, clientX, clientY) {
+  const oldZoom = fsZoom;
+  fsZoom = Math.max(FS_ZOOM_MIN, Math.min(FS_ZOOM_MAX, fsZoom + delta));
+
+  if (fsZoom === oldZoom) return;
+
+  // Zoom cap al punt on hi ha el cursor
+  if (clientX !== undefined && clientY !== undefined) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const fitScale = Math.min(vw / fsImgNaturalW, vh / fsImgNaturalH);
+
+    const oldTotalScale = fitScale * oldZoom;
+    const newTotalScale = fitScale * fsZoom;
+
+    // Centre de la pantalla
+    const cx = vw / 2;
+    const cy = vh / 2;
+
+    // Punt relatiu al centre de la pantalla
+    const relX = clientX - cx;
+    const relY = clientY - cy;
+
+    // Ajustar pan per mantenir el punt sota el cursor
+    fsPanX = (fsPanX - relX) * (newTotalScale / oldTotalScale) + relX;
+    fsPanY = (fsPanY - relY) * (newTotalScale / oldTotalScale) + relY;
+  }
+
+  applyFullscreenTransform(false);
+}
+
+// ─── Controls del fullscreen ────────────────────────────────────
+
+function updateFullscreenFrameInfo() {
+  const d = dom();
+  if (currentImages.length > 0) {
+    d.fsFrameInfo.textContent = `${currentFrameIndex + 1} / ${currentImages.length}`;
+  }
+}
+
+function updateFullscreenPlayButton() {
+  const d = dom();
+  const btn = d.fsPlayBtn;
+  if (isPlaying) {
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/></svg>`;
+    btn.title = "Pausa";
+  } else {
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/></svg>`;
+    btn.title = "Reproduir";
+  }
+}
+
+function fsGoToFrame(index) {
+  goToFrame(index);
+  updateFullscreenFrameInfo();
+  updateFullscreenPlayButton();
+}
+
+// ─── Auto-ocultació dels controls ───────────────────────────────
+
+function showFullscreenControls() {
+  const d = dom();
+  if (!d.fullscreenControls) return;
+  d.fullscreenControls.classList.add("visible");
+  d.fullscreenControls.classList.remove("hidden");
+  d.fullscreenClose.classList.add("visible");
+  d.fullscreenClose.classList.remove("hidden");
+  d.fullscreenTimestamp.classList.add("visible");
+  d.fullscreenTimestamp.classList.remove("hidden");
+  resetFullscreenControlsTimer();
+}
+
+function hideFullscreenControls() {
+  const d = dom();
+  if (!d.fullscreenControls) return;
+  d.fullscreenControls.classList.add("hidden");
+  d.fullscreenControls.classList.remove("visible");
+  d.fullscreenClose.classList.add("hidden");
+  d.fullscreenClose.classList.remove("visible");
+  d.fullscreenTimestamp.classList.add("hidden");
+  d.fullscreenTimestamp.classList.remove("visible");
+}
+
+function resetFullscreenControlsTimer() {
+  clearFullscreenControlsTimer();
+  fsControlsTimer = setTimeout(hideFullscreenControls, FS_CONTROLS_HIDE_DELAY);
+}
+
+function clearFullscreenControlsTimer() {
+  if (fsControlsTimer) {
+    clearTimeout(fsControlsTimer);
+    fsControlsTimer = null;
+  }
 }
 
 // ─── Bindings del fullscreen ────────────────────────────────────
 
+let fsIsDragging = false;
+let fsHasDragged = false;
+let fsDragStartX = 0;
+let fsDragStartY = 0;
+let fsPanStartX = 0;
+let fsPanStartY = 0;
+
 function bindFullscreenEvents() {
   const d = dom();
 
+  // Tancar fullscreen
   d.fullscreenClose.addEventListener("click", closeImageFullscreen);
 
-  // Clic al fons fosc tanca (però no si s'està fent drag)
-  d.fullscreenOverlay.addEventListener("click", (e) => {
-    if (e.target === d.fullscreenOverlay && !isDragging) {
-      closeImageFullscreen();
-    }
-  });
-
-  // Roda del ratolí → zoom
+  // ═══ Zoom amb roda del ratolí ═══
   d.fullscreenOverlay.addEventListener("wheel", (e) => {
     e.preventDefault();
-    zoomFullscreen(e.deltaY < 0 ? 0.15 : -0.15);
+    const delta = e.deltaY < 0 ? FS_ZOOM_STEP : -FS_ZOOM_STEP;
+    zoomFullscreen(delta, e.clientX, e.clientY);
+    showFullscreenControls();
   }, { passive: false });
 
-  // Drag per desplaçar-se
+  // ═══ Pan amb drag (clic i arrossegar) ═══
   d.fullscreenOverlay.addEventListener("mousedown", (e) => {
-    if (e.target === d.fullscreenClose || d.fullscreenClose.contains(e.target)) return;
-    isDragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    scrollStartX = d.fullscreenOverlay.scrollLeft;
-    scrollStartY = d.fullscreenOverlay.scrollTop;
+    // No iniciar drag si es clica als controls
+    if (e.target.closest("#screenshotsHistFullscreenControls") ||
+        e.target.closest("#screenshotsHistFullscreenClose") ||
+        e.target.closest("#screenshotsHistFullscreenTimestamp")) {
+      return;
+    }
+    fsIsDragging = true;
+    fsHasDragged = false;
+    fsDragStartX = e.clientX;
+    fsDragStartY = e.clientY;
+    fsPanStartX = fsPanX;
+    fsPanStartY = fsPanY;
     d.fullscreenOverlay.style.cursor = "grabbing";
-    d.fullscreenImg.style.cursor = "grabbing";
   });
 
   window.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
-    const dx = dragStartX - e.clientX;
-    const dy = dragStartY - e.clientY;
-    d.fullscreenOverlay.scrollLeft = scrollStartX + dx;
-    d.fullscreenOverlay.scrollTop = scrollStartY + dy;
+    if (!fsIsDragging) return;
+    const dx = e.clientX - fsDragStartX;
+    const dy = e.clientY - fsDragStartY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+      fsHasDragged = true;
+    }
+    fsPanX = fsPanStartX + dx;
+    fsPanY = fsPanStartY + dy;
+    applyFullscreenTransform(false);
   });
 
   window.addEventListener("mouseup", () => {
-    if (isDragging) {
-      setTimeout(() => { isDragging = false; }, 50);
+    if (fsIsDragging) {
+      fsIsDragging = false;
+      d.fullscreenOverlay.style.cursor = "";
     }
-    d.fullscreenOverlay.style.cursor = "grab";
-    d.fullscreenImg.style.cursor = "grab";
   });
 
-  // Escape per tancar
+  // Clic al fons fosc tanca (només si no s'ha fet drag)
+  d.fullscreenOverlay.addEventListener("click", (e) => {
+    if (e.target === d.fullscreenOverlay && !fsHasDragged) {
+      closeImageFullscreen();
+    }
+    fsHasDragged = false;
+  });
+
+  // ═══ Navegació dins del fullscreen ═══
+  d.fsPrevBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    fsGoToFrame(currentFrameIndex - 1);
+    showFullscreenControls();
+  });
+  d.fsNextBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    fsGoToFrame(currentFrameIndex + 1);
+    showFullscreenControls();
+  });
+  d.fsPlayBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    togglePlayPause();
+    updateFullscreenPlayButton();
+    showFullscreenControls();
+  });
+
+  // ═══ Auto-ocultació dels controls ═══
+  d.fullscreenOverlay.addEventListener("mousemove", () => {
+    showFullscreenControls();
+  });
+  d.fullscreenOverlay.addEventListener("touchstart", () => {
+    showFullscreenControls();
+  });
+
+  // Detectar sortida del fullscreen real (ESC del navegador)
+  document.addEventListener("fullscreenchange", () => {
+    if (!document.fullscreenElement) {
+      hideFullscreenOverlay();
+    }
+  });
+
+  // ═══ Teclat dins del fullscreen ═══
   d.fullscreenOverlay.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeImageFullscreen();
+    if (e.key === "Escape") {
+      // El navegador ja surt del fullscreen amb ESC
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      fsGoToFrame(currentFrameIndex + 1);
+      showFullscreenControls();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      fsGoToFrame(currentFrameIndex - 1);
+      showFullscreenControls();
+    } else if (e.key === " ") {
+      e.preventDefault();
+      togglePlayPause();
+      updateFullscreenPlayButton();
+      showFullscreenControls();
+    }
+  });
+
+  // Redimensionar: reaplicar transform quan canvia la mida de la pantalla
+  window.addEventListener("resize", () => {
+    if (d.fullscreenOverlay.style.display === "block") {
+      applyFullscreenTransform(false);
+    }
   });
 }
 
@@ -617,13 +931,13 @@ function handleKeyDown(e) {
   const modalEl = document.getElementById("modalScreenshotsHistory");
   if (!modalEl || !modalEl.classList.contains("show")) return;
 
-  if (d.fullscreenOverlay.style.display === "block") {
-    if (e.key === "Escape") {
-      closeImageFullscreen();
-    } else if (e.key === "ArrowRight") {
-      goToFrame(currentFrameIndex + 1);
-    } else if (e.key === "ArrowLeft") {
-      goToFrame(currentFrameIndex - 1);
+  // Si estem en fullscreen, deixem que el listener del overlay gestioni les tecles
+  if (document.fullscreenElement === d.fullscreenOverlay || d.fullscreenOverlay.style.display === "block") {
+    // No fem res aquí: el keydown del fullscreenOverlay i el fullscreenchange del document ho gestionen
+    // Per evitar que Bootstrap tanqui el modal amb ESC, prevenim la propagació
+    if (e.key === "Escape" && document.fullscreenElement) {
+      e.stopPropagation();
+      e.preventDefault();
     }
     return;
   }
@@ -680,6 +994,15 @@ export async function openScreenshotsHistory(alumne) {
 
   bindEvents();
 
+  // Netejar fullscreen si el modal es tanca (Bootstrap dismiss)
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+    hideFullscreenOverlay();
+    stopPlayback();
+  }, { once: true });
+
   modalInstance.show();
 
   // Carregar dades
@@ -715,6 +1038,10 @@ export async function openScreenshotsHistory(alumne) {
  */
 export function closeScreenshotsHistory() {
   stopPlayback();
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+  hideFullscreenOverlay();
   currentData = null;
   currentImages = [];
   cleanupOrphanBootstrapBackdrops();
