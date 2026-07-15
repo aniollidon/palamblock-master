@@ -235,19 +235,84 @@ function setupUpdateChecker() {
   const versionText = $("#versionText");
 
   if (checkUpdatesBtn && window.electronAPI?.getVersion) {
+    // Variables per gestionar l'estat de l'actualització
+    let currentVersion = "";
+    let currentVersionText = versionText?.textContent || "";
+
     // Mostrar versió actual
     window.electronAPI
       .getVersion()
       .then((version) => {
+        currentVersion = version;
         if (versionText) {
           versionText.textContent = `v${version}`;
+          currentVersionText = `v${version}`;
         }
       })
       .catch((error) => {
         console.warn("[HOME] Error obtenint versió:", error);
+        currentVersionText = versionText?.textContent || "";
       });
 
-    // Configurar listener per comprovar actualitzacions
+    // Configurar listeners d'events d'actualització (progrés en temps real)
+    if (window.electronAPI?.onUpdateAvailable) {
+      const removeAvailable = window.electronAPI.onUpdateAvailable((data) => {
+        console.log("[HOME] Actualització disponible:", data);
+        if (versionText && data.version) {
+          versionText.textContent = `v${currentVersion} → v${data.version}`;
+        }
+      });
+      if (typeof removeAvailable === "function") cleanupFunctions.push(removeAvailable);
+    }
+
+    if (window.electronAPI?.onDownloadProgress) {
+      const removeProgress = window.electronAPI.onDownloadProgress((data) => {
+        if (versionText && data.percent != null) {
+          versionText.textContent = `Descarregant ${data.percent.toFixed(0)}%`;
+        }
+      });
+      if (typeof removeProgress === "function") cleanupFunctions.push(removeProgress);
+    }
+
+    if (window.electronAPI?.onUpdateDownloaded) {
+      const removeDownloaded = window.electronAPI.onUpdateDownloaded((data) => {
+        console.log("[HOME] Actualització descarregada:", data);
+        if (versionText) {
+          versionText.textContent = `v${data.version} \u2713 — Reinicia per instal·lar`;
+        }
+        checkUpdatesBtn.disabled = false;
+      });
+      if (typeof removeDownloaded === "function") cleanupFunctions.push(removeDownloaded);
+    }
+
+    if (window.electronAPI?.onUpdateError) {
+      const removeError = window.electronAPI.onUpdateError((data) => {
+        console.error("[HOME] Error d'actualització:", data);
+        if (versionText) {
+          versionText.textContent = "Error ✗";
+          setTimeout(() => {
+            if (versionText) versionText.textContent = currentVersionText;
+          }, 3000);
+        }
+        checkUpdatesBtn.disabled = false;
+      });
+      if (typeof removeError === "function") cleanupFunctions.push(removeError);
+    }
+
+    // Helper per restaurar el botó amb la icona i el text de versió
+    const restoreBtn = (text) => {
+      if (!checkUpdatesBtn) return;
+      checkUpdatesBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor"
+          class="bi bi-arrow-repeat" viewBox="0 0 16 16">
+          <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9" />
+          <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z" />
+        </svg>
+        ${text || ""}
+      `;
+    };
+
+    // Configurar listener pel clic del botó
     const removeListener = addListener(checkUpdatesBtn, "click", async () => {
       if (!window.electronAPI?.checkForUpdates) return;
 
@@ -255,26 +320,46 @@ function setupUpdateChecker() {
         checkUpdatesBtn.disabled = true;
         checkUpdatesBtn.innerHTML =
           '<span class="spinner-border spinner-border-sm me-2"></span>Comprovant...';
+        currentVersionText = versionText?.textContent || "";
 
-        await window.electronAPI.checkForUpdates();
+        const result = await window.electronAPI.checkForUpdates();
 
-        // El resultat es mostrarà via events d'electron
-        setTimeout(() => {
-          checkUpdatesBtn.disabled = false;
+        if (!result || !result.success) {
+          const errMsg = result?.error || "No s'ha pogut comprovar";
+          console.warn("[HOME] checkForUpdates ha fallat:", errMsg);
           if (versionText) {
-            checkUpdatesBtn.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor"
-                class="bi bi-arrow-repeat" viewBox="0 0 16 16">
-                <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41m-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9" />
-                <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z" />
-              </svg>
-              ${versionText.textContent}
-            `;
+            versionText.textContent = "Error ✗";
+            setTimeout(() => {
+              if (versionText) versionText.textContent = currentVersionText;
+            }, 3000);
           }
-        }, 2000);
+          checkUpdatesBtn.disabled = false;
+          restoreBtn(currentVersionText);
+          return;
+        }
+
+        if (
+          result.updateInfo &&
+          result.updateInfo.version &&
+          result.updateInfo.version !== currentVersion
+        ) {
+          if (versionText) {
+            versionText.textContent = `v${currentVersion} → v${result.updateInfo.version}`;
+          }
+        } else {
+          if (versionText) {
+            versionText.textContent = "Actualitzat ✓";
+          }
+          setTimeout(() => {
+            if (versionText) versionText.textContent = currentVersionText;
+            checkUpdatesBtn.disabled = false;
+            restoreBtn(currentVersionText);
+          }, 3000);
+        }
       } catch (error) {
         console.error("[HOME] Error comprovant actualitzacions:", error);
         checkUpdatesBtn.disabled = false;
+        restoreBtn(currentVersionText);
       }
     });
 

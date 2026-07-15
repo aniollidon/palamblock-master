@@ -247,10 +247,5 @@ function setupUpdateListeners() {
   console.log("[HOME] Listeners d'actualització configurats");
 }
 
-// Inicialitzar automàticament quan es carrega el mòdul
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initHome);
-} else {
-  // Si el DOM ja està carregat, inicialitzar immediatament
-  initHome();
-}
+// ATENCIÓ: Aquest mòdul s'importa des de home-view.js. No té auto-inicialització.
+// La inicialització de la vista home es fa a través de view-manager.js → home-view.js → init()
