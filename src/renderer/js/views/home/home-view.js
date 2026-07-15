@@ -295,6 +295,7 @@ function setupUpdateChecker() {
           }, 3000);
         }
         checkUpdatesBtn.disabled = false;
+        showUpdateErrorModal(data);
       });
       if (typeof removeError === "function") cleanupFunctions.push(removeError);
     }
@@ -364,5 +365,77 @@ function setupUpdateChecker() {
     });
 
     cleanupFunctions.push(removeListener);
+  }
+}
+
+/**
+ * Mostra un modal amb l'enllaç de descàrrega manual quan l'auto-update falla
+ * @param {object} data - Dades de l'error amb downloadUrl, releasePageUrl, version, message
+ */
+function showUpdateErrorModal(data) {
+  const { downloadUrl, releasePageUrl, version, message } = data || {};
+
+  // Eliminar modal anterior si existeix
+  const existingModal = document.getElementById("updateErrorModal");
+  if (existingModal) existingModal.remove();
+
+  // Construir el contingut del modal
+  const modalHtml = `
+    <div class="modal fade" id="updateErrorModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Error d'actualització</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tancar"></button>
+          </div>
+          <div class="modal-body">
+            <p>No s'ha pogut instal·lar l'actualització automàticament.</p>
+            ${message ? `<p class="text-muted small">${message}</p>` : ""}
+            ${version ? `<p>Versió disponible: <strong>v${version}</strong></p>` : ""}
+            <p>Pots descarregar-la manualment:</p>
+            <div class="d-grid gap-2">
+              ${downloadUrl ? `
+                <button class="btn btn-primary" id="btnDownloadUpdate">
+                  Descarregar instal·lador
+                </button>
+              ` : ""}
+              ${releasePageUrl ? `
+                <button class="btn btn-outline-secondary" id="btnReleasePage">
+                  Veure totes les versions
+                </button>
+              ` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Inserir al DOM
+  document.body.insertAdjacentHTML("beforeend", modalHtml);
+
+  // Configurar event listeners
+  if (downloadUrl) {
+    const btnDownload = document.getElementById("btnDownloadUpdate");
+    if (btnDownload) {
+      btnDownload.addEventListener("click", () => {
+        window.electronAPI?.openExternal(downloadUrl);
+      });
+    }
+  }
+  if (releasePageUrl) {
+    const btnRelease = document.getElementById("btnReleasePage");
+    if (btnRelease) {
+      btnRelease.addEventListener("click", () => {
+        window.electronAPI?.openExternal(releasePageUrl);
+      });
+    }
+  }
+
+  // Mostrar el modal amb Bootstrap
+  if (typeof bootstrap !== "undefined") {
+    const modalEl = document.getElementById("updateErrorModal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
   }
 }

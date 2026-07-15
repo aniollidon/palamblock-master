@@ -218,6 +218,9 @@ function setupUpdateListeners() {
       if (typeof showErrorToast === "function") {
         showErrorToast("Error comprovant actualitzacions");
       }
+      if (typeof showUpdateErrorModal === "function") {
+        showUpdateErrorModal(data);
+      }
     });
   }
 

@@ -16,6 +16,7 @@ log.transports.file.level = "info";
 autoUpdater.logger = log;
 
 let mainWindow;
+let latestUpdateVersion = null;
 
 function createWindow() {
   // Crea la finestra principal de l'aplicació
@@ -294,6 +295,7 @@ autoUpdater.on("checking-for-update", () => {
 });
 
 autoUpdater.on("update-available", (info) => {
+  latestUpdateVersion = info.version;
   log.info("Actualització disponible:", info.version);
   if (mainWindow) {
     mainWindow.webContents.send("update-available", {
@@ -317,10 +319,30 @@ autoUpdater.on("update-not-available", (info) => {
 
 autoUpdater.on("error", (err) => {
   log.error("Error en actualització:", err);
+
+  // Construir URLs de descàrrega manual
+  let downloadUrl = null;
+  let releasePageUrl = null;
+  if (latestUpdateVersion) {
+    releasePageUrl = `https://github.com/aniollidon/palamblock-master/releases/tag/v${latestUpdateVersion}`;
+
+    const platform = process.platform;
+    if (platform === "win32") {
+      downloadUrl = `https://github.com/aniollidon/palamblock-master/releases/download/v${latestUpdateVersion}/PalamBlock-Setup.exe`;
+    } else if (platform === "linux") {
+      downloadUrl = `https://github.com/aniollidon/palamblock-master/releases/download/v${latestUpdateVersion}/PalamBlock-x64.AppImage`;
+    } else if (platform === "darwin") {
+      downloadUrl = `https://github.com/aniollidon/palamblock-master/releases/download/v${latestUpdateVersion}/PalamBlock-${latestUpdateVersion}.dmg`;
+    }
+  }
+
   if (mainWindow) {
     mainWindow.webContents.send("update-error", {
       message: err.message || "Error desconegut",
       stack: err.stack,
+      downloadUrl,
+      releasePageUrl,
+      version: latestUpdateVersion,
     });
   }
 });
