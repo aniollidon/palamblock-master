@@ -76,12 +76,13 @@ function handleFullscreen(iframe, ip, alumne, allowEdit = false) {
     cleanup();
 
     // Canvia URL segons si permet edició o només visualització
+    const vncPwd = getState().remoteVncPassword || 'fpb123';
     if (allowEdit) {
       // Mode edició: sense view=true (botó cursor)
-      iframe.src = `http://${ip}:6080/vnc_iframe.html?password=fpb123&reconnect&name=${alumne}`;
+      iframe.src = `http://${ip}:6080/vnc_iframe.html?password=${vncPwd}&reconnect&name=${alumne}`;
     } else {
       // Mode visualització: manté view=true (overlay)
-      iframe.src = `http://${ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
+      iframe.src = `http://${ip}:6080/vnc_iframe.html?password=${vncPwd}&view=true&reconnect&name=${alumne}`;
     }
 
     // Prova diferents mètodes de fullscreen per compatibilitat amb Electron
@@ -105,7 +106,7 @@ function handleFullscreen(iframe, ip, alumne, allowEdit = false) {
         !document.mozFullScreenElement &&
         !document.msFullscreenElement
       ) {
-        iframe.src = `http://${ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
+        iframe.src = `http://${ip}:6080/vnc_iframe.html?password=${vncPwd}&view=true&reconnect&name=${alumne}`;
         cleanup();
       }
     };
@@ -195,7 +196,8 @@ function drawGridItem(alumne, maquina) {
       <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5 5 0 0 0 8 3M3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9z"/>
     </svg>`;
   buttonRefresh.onclick = () => {
-    iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`;
+    const vncPwd = getState().remoteVncPassword || 'fpb123';
+    iframe.src = `http://${maquina.ip}:6080/vnc_iframe.html?password=${vncPwd}&view=true&reconnect&name=${alumne}`;
   };
   itemButtons.appendChild(buttonRefresh);
 
@@ -411,9 +413,10 @@ function drawGridItem(alumne, maquina) {
     buttonCopyIP.disabled = true;
 
   } else {
+    const vncPwd = getState().remoteVncPassword || 'fpb123';
     iframe.setAttribute(
       "src",
-      `http://${maquina.ip}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumne}`
+      `http://${maquina.ip}:6080/vnc_iframe.html?password=${vncPwd}&view=true&reconnect&name=${alumne}`
     );
     gridItem.classList.add("online");
     // Reactiva els botons

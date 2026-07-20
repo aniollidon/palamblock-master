@@ -1,6 +1,8 @@
 // Cast sidebar logic for /admin/screens
 // Mostra i amaga la sidebar, gestiona la previsualització i la captura de pantalla
 
+import { getState } from "../../core/store.js";
+
 // Socket per cast (ws-cast) - ara es crea després de l'autenticació
 let castSocket = null;
 
@@ -868,7 +870,8 @@ async function shareStudentScreen(alumneNom, alumneIp) {
   }
 
   // Construir URL de l'alumne (mateix format que els iframes de screens.js)
-  const studentUrl = `http://${alumneIp}:6080/vnc_iframe.html?password=fpb123&view=true&reconnect&name=${alumneNom}`;
+  const vncPwd = getState().remoteVncPassword || 'fpb123';
+  const studentUrl = `http://${alumneIp}:6080/vnc_iframe.html?password=${vncPwd}&view=true&reconnect&name=${alumneNom}`;
 
   // Preparar dades de compartició
   const choice = { kind: "url", url: studentUrl, interactive: false };

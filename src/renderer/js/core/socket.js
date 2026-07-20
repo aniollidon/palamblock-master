@@ -142,9 +142,13 @@ export class SocketManager {
         this.authManager.adminRole = data?.role || 'admin';
         this.authManager.adminGrupsPermesos = data?.grupsPermesos || [];
       }
-      // Propagar expectedNetwork al store (abans que attachAdminSocket registri el listener)
+      // Propagar expectedNetwork i remoteVncPassword al store
+      // (abans que attachAdminSocket registri el listener)
       if (data && typeof data.expectedNetwork !== 'undefined') {
         emit('expectedNetwork', data.expectedNetwork || null);
+      }
+      if (data && typeof data.remoteVncPassword !== 'undefined') {
+        emit('remoteVncPassword', data.remoteVncPassword || null);
       }
     });
 

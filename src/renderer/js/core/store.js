@@ -14,6 +14,7 @@ const state = {
   historialHostsSortedByUsage: {},
   alumnesMachine: null,
   expectedNetwork: null,
+  remoteVncPassword: null,
 };
 
 // Mapa de listeners: event -> Set<callback>
@@ -129,6 +130,10 @@ export function attachAdminSocket(sock) {
       state.expectedNetwork = data.expectedNetwork || null;
       emit('expectedNetwork', state.expectedNetwork);
     }
+    if (data && typeof data.remoteVncPassword !== 'undefined') {
+      state.remoteVncPassword = data.remoteVncPassword || null;
+      emit('remoteVncPassword', state.remoteVncPassword);
+    }
   });
 
   onEvt('grupAlumnesList', (data) => {
@@ -201,6 +206,11 @@ export function attachAdminSocket(sock) {
 // (pot venir tant del socket roleInfo com del SocketManager)
 on('expectedNetwork', (network) => {
   state.expectedNetwork = network;
+});
+
+// Auto-listener: actualitzar state quan es rep l'event remoteVncPassword
+on('remoteVncPassword', (password) => {
+  state.remoteVncPassword = password;
 });
 
 /**
