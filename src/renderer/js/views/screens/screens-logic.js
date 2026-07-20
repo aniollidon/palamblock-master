@@ -320,8 +320,9 @@ function drawGridItem(alumne, maquina) {
     </svg>`;
   buttonIncognito.onclick = () => {
     // Open link in new tab
+    const vncPwd = getState().remoteVncPassword || 'fpb123';
     window.open(
-      `http://${maquina.ip}:6080/vnc.html?reconnect&viewonly=true&name=${alumne}`,
+      `http://${maquina.ip}:6080/vnc.html?password=${vncPwd}&reconnect&viewonly=true&name=${alumne}`,
       "_blank"
     );
   };
