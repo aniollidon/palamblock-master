@@ -455,6 +455,10 @@ function renderitzarTaulaAlumnes() {
     `
     )
     .join("");
+
+  // Re-aplicar els filtres actius després de re-renderitzar la taula
+  // perquè no es perdin en actualitzar-se les dades (p.ex. en esborrar un alumne)
+  filtrarAlumnes();
 }
 
 /**

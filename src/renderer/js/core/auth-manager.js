@@ -510,6 +510,7 @@ export class AuthManager {
    * @returns {boolean}
    */
   isSuperAdmin() {
+    console.log("[AUTH] Rol usuari: ", "username:", this.currentCredentials?.username, "role:", this.adminRole);
     return this.adminRole === 'superadmin';
   }
 
