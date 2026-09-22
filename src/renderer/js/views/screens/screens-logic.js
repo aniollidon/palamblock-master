@@ -129,12 +129,15 @@ export function drawGridGrup_update(updatedData) {
   for (let alumne in updatedData) {
     if (!grupAlumnesList[grup] || !grupAlumnesList[grup].alumnes[alumne])
       continue;
-    if (Object.keys(updatedData[alumne]).length === 0) continue;
     if (compareMachines(alumnesMachines[alumne], updatedData[alumne])) continue;
     const oldGridItem = document.getElementById("grid-item-" + alumne);
     if (!oldGridItem) continue;
-    const maquina = Object.values(updatedData[alumne])[0];
-    if (!maquina) continue;
+    // Sense màquines connectades cal mostrar la casella com a desconnectada, no ometre-la.
+    const machines = Object.values(updatedData[alumne]);
+    const maquina =
+      machines.find((machine) => machine?.connected) ||
+      machines[0] ||
+      { connected: false, ip: "" };
     const gridItem = drawGridItem(alumne, maquina);
     const grid = document.getElementById("grid-container");
     grid.replaceChild(gridItem, oldGridItem);
@@ -501,11 +504,10 @@ function drawGridGrup(grupName) {
   for (let alumne in grup.alumnes) {
     let maquina = { connected: false, ip: "" };
 
-    if (
-      alumnesMachines[alumne] &&
-      Object.keys(alumnesMachines[alumne]).length !== 0
-    )
-      maquina = Object.values(alumnesMachines[alumne])[0];
+    if (alumnesMachines[alumne]) {
+      const machines = Object.values(alumnesMachines[alumne]);
+      maquina = machines.find((machine) => machine?.connected) || machines[0] || maquina;
+    }
 
     const gridItem = drawGridItem(alumne, maquina);
     grid.appendChild(gridItem);

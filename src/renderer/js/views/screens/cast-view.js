@@ -815,7 +815,8 @@ function updateStudentDropdown() {
       currentAlumnesMachines[alumne] &&
       Object.keys(currentAlumnesMachines[alumne]).length > 0
     ) {
-      const maquina = Object.values(currentAlumnesMachines[alumne])[0];
+      const machines = Object.values(currentAlumnesMachines[alumne]);
+      const maquina = machines.find((machine) => machine?.connected) || machines[0];
       if (maquina && maquina.connected && maquina.ip) {
         alumnesConnectats.push({ nom: alumne, ip: maquina.ip });
       }
