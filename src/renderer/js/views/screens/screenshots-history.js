@@ -312,7 +312,7 @@ function flattenAndSortSessions(machines) {
   return flat;
 }
 
-function populateFlatSessionSelect(flatSessions) {
+function populateFlatSessionSelect(flatSessions, target = null) {
   const d = dom();
   d.sessionSelect.innerHTML = "";
   if (flatSessions.length === 0) {
@@ -327,11 +327,23 @@ function populateFlatSessionSelect(flatSessions) {
     opt.textContent = formatSessionLabel(session);
     d.sessionSelect.appendChild(opt);
   }
-  d.sessionSelect.value = flatSessions[0].sessionId;
-  onSessionChange();
+  const targetSession = target && flatSessions.find(session =>
+    session._machineId === target.machineId &&
+    session.sessionId === target.sessionId
+  );
+  const selectedSession = targetSession || flatSessions[0];
+  d.sessionSelect.value = selectedSession.sessionId;
+  for (const option of d.sessionSelect.options) {
+    if (option.getAttribute("data-machine") === selectedSession._machineId &&
+        option.value === selectedSession.sessionId) {
+      option.selected = true;
+      break;
+    }
+  }
+  onSessionChange(targetSession ? target.timestamp : null);
 }
 
-function onSessionChange() {
+function onSessionChange(targetTimestamp = null) {
   const d = dom();
   const selectedOpt = d.sessionSelect.selectedOptions[0];
   const machineId = selectedOpt ? selectedOpt.getAttribute("data-machine") : null;
@@ -362,7 +374,17 @@ function onSessionChange() {
 
   d.empty.style.display = "none";
   d.player.style.display = "block";
-  goToFrame(0);
+  if (targetTimestamp && currentImages.length > 1) {
+    const targetTime = Date.parse(targetTimestamp);
+    if (Number.isFinite(targetTime)) {
+      currentFrameIndex = currentImages.reduce((closest, image, index) => {
+        const closestDistance = Math.abs(Date.parse(currentImages[closest].timestamp) - targetTime);
+        const distance = Math.abs(Date.parse(image.timestamp) - targetTime);
+        return distance < closestDistance ? index : closest;
+      }, 0);
+    }
+  }
+  goToFrame(currentFrameIndex);
 }
 
 function hidePlayer() {
@@ -936,7 +958,7 @@ function handleKeyDown(e) {
  * Obre el modal d'historial de captures per a un alumne.
  * @param {string} alumne - Nom de l'alumne
  */
-export async function openScreenshotsHistory(alumne) {
+export async function openScreenshotsHistory(alumne, target = null) {
   debugLog("Obrint historial per:", alumne);
 
   ensureModalInDOM();
@@ -998,7 +1020,7 @@ export async function openScreenshotsHistory(alumne) {
       return;
     }
 
-    populateFlatSessionSelect(flatSessions);
+    populateFlatSessionSelect(flatSessions, target);
   } catch (err) {
     console.error("[SCREENSHOTS_HIST] Error carregant:", err);
     d.loading.innerHTML = `<p class="text-danger">Error carregant dades: ${err.message}</p>`;

@@ -154,7 +154,7 @@ function drawGridItem(alumne, maquina) {
     maquina?.displayName ||
       (maquina?.sessionActive
         ? maquina?.sessionDisplayName || maquina?.sessionUser
-        : maquina?.sessionDisplayName),
+        : null),
     alumne
   );
   const gridItem = document.createElement("div");

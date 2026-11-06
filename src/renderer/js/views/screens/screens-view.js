@@ -18,6 +18,10 @@ import {
 import { initCastSidebarListeners } from "./cast-view.js";
 import { getSocket } from "../../core/container-helpers.js";
 import { closeScreenshotsHistory } from "./screenshots-history.js";
+import {
+  closeClassScreenshotsHistory,
+  openClassScreenshotsHistory,
+} from "./class-screenshots-history.js";
 
 // --- Debug util ---
 function debugLog(...args) {
@@ -30,6 +34,15 @@ let maquines_disponibles = false;
 let unsubscribers = [];
 let boundElements = new Map(); // Canviat a Map per guardar element -> handler
 let professorNetworkCheckInterval = null;
+let groupHistoryButtonHandler = null;
+let groupSelectorChangeHandler = null;
+
+function updateGroupHistoryButton() {
+  const button = document.getElementById("globalGroupScreenshotsHistoryButton");
+  const groupSelector = document.getElementById("grupSelector");
+  const selectedOption = groupSelector?.selectedOptions?.[0];
+  if (button) button.disabled = !selectedOption?.value || selectedOption.disabled;
+}
 
 /**
  * Assegura que el socket està inicialitzat
@@ -105,6 +118,22 @@ function stopProfessorNetworkCheck() {
  * Enllaça esdeveniments DOM i store
  */
 function bind() {
+  const groupHistoryButton = document.getElementById("globalGroupScreenshotsHistoryButton");
+  if (groupHistoryButton && !groupHistoryButtonHandler) {
+    groupHistoryButtonHandler = () => {
+      const groupId = document.getElementById("grupSelector")?.value;
+      if (groupId) openClassScreenshotsHistory(groupId);
+    };
+    groupHistoryButton.addEventListener("click", groupHistoryButtonHandler);
+  }
+
+  const groupSelectorForHistory = document.getElementById("grupSelector");
+  if (groupSelectorForHistory && !groupSelectorChangeHandler) {
+    groupSelectorChangeHandler = updateGroupHistoryButton;
+    groupSelectorForHistory.addEventListener("change", groupSelectorChangeHandler);
+  }
+  updateGroupHistoryButton();
+
   // Power off all button
   const powerBtn = document.getElementById("globalGroupPowerOffButton");
   if (powerBtn && !boundElements.has(powerBtn)) {
@@ -142,6 +171,7 @@ function bind() {
       setGrupAlumnesList(data);
       if (grups_disponibles && maquines_disponibles) {
         preparaSelectorGrups();
+        updateGroupHistoryButton();
       }
     })
   );
@@ -153,6 +183,7 @@ function bind() {
       setAlumnesMachine(data);
       if (grups_disponibles && maquines_disponibles) {
         preparaSelectorGrups();
+        updateGroupHistoryButton();
       }
     })
   );
@@ -244,6 +275,7 @@ export function destroy() {
 
   // Tancar modal d'historial si està obert
   closeScreenshotsHistory();
+  closeClassScreenshotsHistory();
 
   // Desubscriure de tots els esdeveniments del store
   for (const off of unsubscribers) {
@@ -260,6 +292,16 @@ export function destroy() {
     } catch (_) {}
   }
   boundElements.clear();
+  const groupHistoryButton = document.getElementById("globalGroupScreenshotsHistoryButton");
+  const groupSelector = document.getElementById("grupSelector");
+  if (groupHistoryButton && groupHistoryButtonHandler) {
+    groupHistoryButton.removeEventListener("click", groupHistoryButtonHandler);
+  }
+  if (groupSelector && groupSelectorChangeHandler) {
+    groupSelector.removeEventListener("change", groupSelectorChangeHandler);
+  }
+  groupHistoryButtonHandler = null;
+  groupSelectorChangeHandler = null;
 
   // Aturar comprovació periòdica de xarxa del professor
   stopProfessorNetworkCheck();

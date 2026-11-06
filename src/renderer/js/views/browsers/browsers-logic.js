@@ -46,7 +46,7 @@ function getMachineShownName(machine, fallback = null) {
 
   const candidate = machine.sessionActive
     ? machine.displayName || machine.sessionDisplayName || machine.sessionUser
-    : machine.displayName || machine.sessionDisplayName;
+    : machine.displayName;
 
   return asDisplayText(candidate, fallback);
 }
