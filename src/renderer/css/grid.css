@@ -1,9 +1,9 @@
 /* Ported grid styles from web version for screens view */
 .grid-container{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 0fr));
+    grid-template-columns: repeat(auto-fit, minmax(var(--grid-card-width, 300px), 0fr));
     gap: 0 20px;
-    justify-content: center;
+    justify-content: safe center;
     padding: 20px;
 }
 
@@ -20,7 +20,8 @@
     padding-bottom: 10px;
     text-align: center;
     box-sizing: border-box;
-    width: fit-content;
+    width: 300px;
+    zoom: var(--grid-card-zoom, 1);
 }
 
 .grid-item-buttons .btn{
@@ -70,6 +71,42 @@
 
 .grid-item-content-screen {
     position: relative;
+}
+
+.class-screenshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--grid-card-width, 300px), 0fr));
+    gap: 1rem;
+    justify-content: safe center;
+    overflow-x: auto;
+}
+
+.class-screenshots-card {
+    min-width: 0;
+    width: 300px;
+    box-sizing: border-box;
+    zoom: var(--grid-card-zoom, 1);
+}
+
+.class-screenshots-preview {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #111;
+    border: 0;
+    border-radius: 4px;
+    color: #fff;
+    overflow: hidden;
+}
+
+.class-screenshots-preview:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.class-screenshots-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .network-warning-icon {

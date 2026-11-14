@@ -22,6 +22,7 @@ import {
   closeClassScreenshotsHistory,
   openClassScreenshotsHistory,
 } from "./class-screenshots-history.js";
+import { createGridZoom } from "./grid-zoom.mjs";
 
 // --- Debug util ---
 function debugLog(...args) {
@@ -36,6 +37,7 @@ let boundElements = new Map(); // Canviat a Map per guardar element -> handler
 let professorNetworkCheckInterval = null;
 let groupHistoryButtonHandler = null;
 let groupSelectorChangeHandler = null;
+const liveGridZoom = createGridZoom();
 
 function updateGroupHistoryButton() {
   const button = document.getElementById("globalGroupScreenshotsHistoryButton");
@@ -118,6 +120,8 @@ function stopProfessorNetworkCheck() {
  * Enllaça esdeveniments DOM i store
  */
 function bind() {
+  const liveGrid = document.getElementById("grid-container");
+  if (liveGrid) liveGridZoom.attach(liveGrid);
   const groupHistoryButton = document.getElementById("globalGroupScreenshotsHistoryButton");
   if (groupHistoryButton && !groupHistoryButtonHandler) {
     groupHistoryButtonHandler = () => {
@@ -272,6 +276,7 @@ export async function init() {
  */
 export function destroy() {
   debugLog("DESTRUINT VISTA");
+  liveGridZoom.detach();
 
   // Tancar modal d'historial si està obert
   closeScreenshotsHistory();

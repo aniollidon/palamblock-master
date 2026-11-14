@@ -1,11 +1,23 @@
 import { createBootstrapModal } from "../../utils/dom-helpers.js";
 import { getAuthManager } from "../../core/container-helpers.js";
 import { openScreenshotsHistory } from "./screenshots-history.js";
+import {
+  buildMachineTimelines,
+  findRecentCapture,
+  TIMELINE_STEP_MS,
+} from "./class-screenshots-timeline.mjs";
+import { createGridZoom } from "./grid-zoom.mjs";
 
 const MODAL_ID = "modalClassScreenshotsHistory";
 let modalInstance = null;
 let currentSessions = [];
 let eventsBound = false;
+let currentSession = null;
+let cards = [];
+let currentTime = 0;
+let playbackTimer = null;
+let loadVersion = 0;
+const historyGridZoom = createGridZoom();
 
 function getBaseUrl() {
   return getAuthManager()?.serverUrl || "";
@@ -56,7 +68,27 @@ function ensureModal() {
               No s’han trobat sessions de classe amb captures.
             </div>
             <div id="${MODAL_ID}SessionInfo" class="small text-muted mb-2"></div>
-            <div id="${MODAL_ID}Captures" class="d-flex flex-column gap-2"></div>
+            <div id="${MODAL_ID}Timeline" style="display:none;">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="${MODAL_ID}Previous">−30 s</button>
+                <button type="button" class="btn btn-sm btn-primary" id="${MODAL_ID}Play">Reproduir</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="${MODAL_ID}Next">+30 s</button>
+                <label class="small" for="${MODAL_ID}Speed">Velocitat:</label>
+                <select class="form-select form-select-sm" id="${MODAL_ID}Speed" style="width:auto;">
+                  <option value="2000">Lenta (2 s / pas)</option>
+                  <option value="500" selected>Normal (0,5 s / pas)</option>
+                  <option value="200">Ràpida (0,2 s / pas)</option>
+                </select>
+                <span id="${MODAL_ID}CurrentTime" class="small fw-semibold" aria-live="polite"></span>
+              </div>
+              <label class="form-label small" for="${MODAL_ID}Progress">Instant de la sessió</label>
+              <input type="range" class="form-range" id="${MODAL_ID}Progress" min="0" max="0" step="1" value="0">
+              <div class="d-flex justify-content-between small text-muted mb-3">
+                <span id="${MODAL_ID}StartTime"></span>
+                <span id="${MODAL_ID}EndTime"></span>
+              </div>
+            </div>
+            <div id="${MODAL_ID}Captures" class="class-screenshots-grid"></div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tancar</button>
@@ -77,13 +109,17 @@ function formatClassSession(session) {
 }
 
 function renderSelectedSession() {
+  stopPlayback();
   const select = getElement("SessionSelect");
   const selected = currentSessions.find(session => session.id === select.value);
   const captures = getElement("Captures");
   const empty = getElement("Empty");
   const info = getElement("SessionInfo");
 
+  currentSession = selected || null;
+  cards = [];
   captures.replaceChildren();
+  getElement("Timeline").style.display = "none";
   if (!selected) {
     empty.style.display = currentSessions.length === 0 ? "block" : "none";
     info.textContent = "";
@@ -92,43 +128,133 @@ function renderSelectedSession() {
 
   empty.style.display = selected.images.length === 0 ? "block" : "none";
   info.textContent = `${selected.images.length} captures · ` +
-    `${selected.sessions.length} sessions individuals`;
+    `${selected.sessions.length} trams individuals`;
 
-  for (const image of selected.images) {
-    const row = document.createElement("div");
-    row.className = "d-flex align-items-center gap-3 border rounded p-2 flex-wrap";
-
-    const preview = document.createElement("img");
-    preview.src = getBaseUrl() + image.url;
-    preview.alt = `Captura de ${image.userLabel || image.alumne}`;
-    preview.loading = "lazy";
-    preview.style.cssText = "width:160px;height:90px;object-fit:contain;background:#111;border-radius:4px;";
-    row.appendChild(preview);
-
-    const details = document.createElement("div");
-    details.className = "flex-grow-1";
-    const timestamp = document.createElement("div");
-    timestamp.className = "fw-semibold";
-    timestamp.textContent = formatTimestamp(image.timestamp);
+  const start = Date.parse(selected.startedAt);
+  const end = Date.parse(selected.endedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    throw new Error("L'interval de la sessió de classe és invàlid");
+  }
+  currentTime = start;
+  for (const timeline of buildMachineTimelines(selected.images)) {
+    const card = document.createElement("div");
+    card.className = "class-screenshots-card border rounded p-2";
     const user = document.createElement("div");
-    user.textContent = image.userLabel || image.alumne;
+    user.className = "fw-semibold text-truncate";
     const machine = document.createElement("div");
-    machine.className = "small text-muted";
-    machine.textContent = `Màquina ${image.machineId}`;
-    details.append(timestamp, user, machine);
-    row.appendChild(details);
+    machine.className = "small text-muted text-truncate mb-1";
+    machine.textContent = `Màquina ${timeline.machineId}`;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "class-screenshots-preview d-flex align-items-center justify-content-center p-0";
+    const preview = document.createElement("img");
+    preview.alt = "";
+    preview.loading = "eager";
+    const placeholder = document.createElement("span");
+    placeholder.className = "small p-2";
+    button.append(preview, placeholder);
+    const timestamp = document.createElement("div");
+    timestamp.className = "small text-muted mt-1";
+    const cardState = { timeline, user, button, preview, placeholder, timestamp, image: undefined };
+    preview.addEventListener("load", () => {
+      preview.style.display = "";
+      placeholder.style.display = "none";
+    });
+    preview.addEventListener("error", () => {
+      preview.style.display = "none";
+      placeholder.textContent = "No s'ha pogut carregar la captura";
+      placeholder.style.display = "";
+    });
+    button.addEventListener("click", () => {
+      if (cardState.image) openMachineSession(cardState.image);
+    });
+    card.append(user, machine, button, timestamp);
+    captures.appendChild(card);
+    cards.push(cardState);
+  }
 
-    const openButton = document.createElement("button");
-    openButton.type = "button";
-    openButton.className = "btn btn-sm btn-outline-primary";
-    openButton.textContent = "Entrar a la sessió";
-    openButton.addEventListener("click", () => openMachineSession(image));
-    row.appendChild(openButton);
-    captures.appendChild(row);
+  const progress = getElement("Progress");
+  progress.max = String(end - start);
+  progress.disabled = start === end;
+  getElement("StartTime").textContent = formatTimestamp(selected.startedAt);
+  getElement("EndTime").textContent = formatTimestamp(selected.endedAt);
+  getElement("Timeline").style.display = selected.images.length ? "block" : "none";
+  renderTime(start);
+}
+
+function renderTime(time) {
+  if (!currentSession) return;
+  const start = Date.parse(currentSession.startedAt);
+  const end = Date.parse(currentSession.endedAt);
+  currentTime = Math.max(start, Math.min(end, time));
+  getElement("Progress").value = String(currentTime - start);
+  getElement("Progress").setAttribute("aria-valuetext", formatTimestamp(currentTime));
+  getElement("CurrentTime").textContent = formatTimestamp(currentTime);
+  getElement("Previous").disabled = currentTime <= start;
+  getElement("Next").disabled = currentTime >= end;
+  getElement("Play").disabled = start === end;
+
+  for (const card of cards) {
+    const image = findRecentCapture(card.timeline.captures, currentTime);
+    card.user.textContent = image?.userLabel || card.timeline.alumne;
+    card.button.disabled = !image;
+    card.button.setAttribute("aria-label", image
+      ? `Obrir l'historial de ${image.userLabel || image.alumne}, màquina ${card.timeline.machineId}`
+      : `Sense captura recent de ${card.timeline.alumne}, màquina ${card.timeline.machineId}`);
+    card.timestamp.textContent = image ? `Captura: ${formatTimestamp(image.timestamp)}` : "Sense captura recent";
+    if (card.image === image) continue;
+    card.image = image;
+    if (image) {
+      card.placeholder.textContent = "Carregant captura...";
+      card.placeholder.style.display = "";
+      card.preview.style.display = "none";
+      card.preview.alt = `Captura de ${image.userLabel || image.alumne}`;
+      card.preview.src = getBaseUrl() + image.url;
+    } else {
+      card.preview.removeAttribute("src");
+      card.preview.style.display = "none";
+      card.placeholder.textContent = "Sense captura recent";
+      card.placeholder.style.display = "";
+    }
   }
 }
 
+function stopPlayback() {
+  if (playbackTimer !== null) clearTimeout(playbackTimer);
+  playbackTimer = null;
+  const button = getElement("Play");
+  if (button) button.textContent = "Reproduir";
+}
+
+function schedulePlayback() {
+  const delay = Number(getElement("Speed").value);
+  playbackTimer = setTimeout(() => {
+    playbackTimer = null;
+    if (!currentSession) return;
+    renderTime(currentTime + TIMELINE_STEP_MS);
+    if (currentTime >= Date.parse(currentSession.endedAt)) stopPlayback();
+    else schedulePlayback();
+  }, delay);
+}
+
+function togglePlayback() {
+  if (!currentSession) return;
+  if (playbackTimer !== null) {
+    stopPlayback();
+    return;
+  }
+  if (currentTime >= Date.parse(currentSession.endedAt)) {
+    renderTime(Date.parse(currentSession.startedAt));
+  }
+  getElement("Play").textContent = "Pausar";
+  schedulePlayback();
+}
+
 async function loadClassSessions(groupId) {
+  const version = ++loadVersion;
+  stopPlayback();
+  currentSession = null;
+  cards = [];
   const loading = getElement("Loading");
   const error = getElement("Error");
   const select = getElement("SessionSelect");
@@ -136,6 +262,7 @@ async function loadClassSessions(groupId) {
   select.replaceChildren();
   getElement("Empty").style.display = "none";
   getElement("SessionInfo").textContent = "";
+  getElement("Timeline").style.display = "none";
   loading.style.display = "block";
   error.style.display = "none";
   getElement("Captures").replaceChildren();
@@ -148,6 +275,7 @@ async function loadClassSessions(groupId) {
       { headers: { Authorization: `Bearer ${getAuthToken()}` } }
     );
     const result = await response.json();
+    if (version !== loadVersion) return;
     if (!response.ok || result.status !== "OK") {
       throw new Error(result.message || `HTTP ${response.status}`);
     }
@@ -175,11 +303,12 @@ async function loadClassSessions(groupId) {
     getElement("Empty").style.display = currentSessions.length === 0 ? "block" : "none";
     if (currentSessions.length > 0) renderSelectedSession();
   } catch (loadError) {
+    if (version !== loadVersion) return;
     console.error("[CLASS_SCREENSHOTS_HIST] Error carregant sessions:", loadError);
     error.textContent = `No s’han pogut carregar les sessions: ${loadError.message}`;
     error.style.display = "block";
   } finally {
-    loading.style.display = "none";
+    if (version === loadVersion) loading.style.display = "none";
   }
 }
 
@@ -198,7 +327,34 @@ function openMachineSession(image) {
 function bindEvents() {
   if (eventsBound) return;
   eventsBound = true;
-  getElement("SessionSelect").addEventListener("change", renderSelectedSession);
+  historyGridZoom.attach(getElement("Captures"));
+  getElement("SessionSelect").addEventListener("change", () => {
+    try {
+      getElement("Error").style.display = "none";
+      renderSelectedSession();
+    } catch (error) {
+      stopPlayback();
+      console.error("[CLASS_SCREENSHOTS_HIST] Error mostrant sessió:", error);
+      getElement("Error").textContent = `No s'ha pogut mostrar la sessió: ${error.message}`;
+      getElement("Error").style.display = "block";
+    }
+  });
+  getElement("Previous").addEventListener("click", () => renderTime(currentTime - TIMELINE_STEP_MS));
+  getElement("Next").addEventListener("click", () => renderTime(currentTime + TIMELINE_STEP_MS));
+  getElement("Play").addEventListener("click", togglePlayback);
+  getElement("Speed").addEventListener("change", () => {
+    if (playbackTimer !== null) {
+      clearTimeout(playbackTimer);
+      schedulePlayback();
+    }
+  });
+  getElement("Progress").addEventListener("input", event => {
+    if (currentSession) renderTime(Date.parse(currentSession.startedAt) + Number(event.target.value));
+  });
+  document.getElementById(MODAL_ID).addEventListener("hidden.bs.modal", () => {
+    stopPlayback();
+    loadVersion++;
+  });
   getElement("Refresh").addEventListener("click", () => {
     const groupId = getElement("SessionSelect").dataset.groupId;
     if (groupId) loadClassSessions(groupId);
