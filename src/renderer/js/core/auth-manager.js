@@ -205,6 +205,20 @@ export class AuthManager {
    * Mostra el modal de login
    */
   showLogin() {
+    if (!window.dispatchEvent(new CustomEvent("auth:login-request", { cancelable: true }))) {
+      if (!this._deferredArchiveLogin) {
+        this._deferredArchiveLogin = () => {
+          this._deferredArchiveLogin = null;
+          if (!this.isAuthenticated) this.showLogin();
+        };
+        window.addEventListener("screenshot-archive-view-closed", this._deferredArchiveLogin, { once: true });
+      }
+      return;
+    }
+    if (this._deferredArchiveLogin) {
+      window.removeEventListener("screenshot-archive-view-closed", this._deferredArchiveLogin);
+      this._deferredArchiveLogin = null;
+    }
     const modal = document.getElementById("loginModal");
     if (!modal) {
       console.error("[AUTH] Modal de login no trobat!");

@@ -10,6 +10,7 @@ const {
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
+const { registerScreenshotArchiveIpc } = require("./screenshot-archive-ipc");
 
 // Configuració del logger per l'autoUpdater
 log.transports.file.level = "info";
@@ -17,6 +18,7 @@ autoUpdater.logger = log;
 
 let mainWindow;
 let latestUpdateVersion = null;
+registerScreenshotArchiveIpc(() => mainWindow);
 
 function createWindow() {
   // Crea la finestra principal de l'aplicació

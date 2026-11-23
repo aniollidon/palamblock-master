@@ -7,6 +7,7 @@ import {
   TIMELINE_STEP_MS,
 } from "./class-screenshots-timeline.mjs";
 import { createGridZoom } from "./grid-zoom.mjs";
+import { rememberArchive, localSessions, screenshotUrl, localStudentData, setArchiveViewing } from "./screenshot-archive.mjs";
 
 const MODAL_ID = "modalClassScreenshotsHistory";
 let modalInstance = null;
@@ -17,6 +18,9 @@ let cards = [];
 let currentTime = 0;
 let playbackTimer = null;
 let loadVersion = 0;
+let operationBusy = false;
+let openingIndividual = false;
+let operationAbort = null;
 const historyGridZoom = createGridZoom();
 
 function getBaseUrl() {
@@ -58,6 +62,12 @@ function ensureModal() {
                 <select class="form-select" id="${MODAL_ID}SessionSelect"></select>
               </div>
               <button type="button" class="btn btn-outline-secondary" id="${MODAL_ID}Refresh">Actualitzar</button>
+              <button type="button" class="btn btn-outline-primary" id="${MODAL_ID}Export">Descarregar</button>
+            </div>
+            <p class="small text-muted">Les còpies contenen dades i captures d'alumnes i no estan xifrades. També pots arrossegar un fitxer .pb.zip aquí.</p>
+            <div id="${MODAL_ID}Operation" class="alert alert-info" style="display:none;" role="status">
+              <span id="${MODAL_ID}OperationText"></span>
+              <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="${MODAL_ID}Cancel">Cancel·lar</button>
             </div>
             <div id="${MODAL_ID}Loading" class="text-center py-4" style="display:none;">
               <div class="spinner-border" role="status"><span class="visually-hidden">Carregant...</span></div>
@@ -111,12 +121,14 @@ function formatClassSession(session) {
 function renderSelectedSession() {
   stopPlayback();
   const select = getElement("SessionSelect");
-  const selected = currentSessions.find(session => session.id === select.value);
+  const selected = currentSessions.find(session => sessionKey(session) === select.value);
   const captures = getElement("Captures");
   const empty = getElement("Empty");
   const info = getElement("SessionInfo");
 
   currentSession = selected || null;
+  setArchiveViewing(Boolean(selected?._archiveId));
+  getElement("Export").disabled = !selected || Boolean(selected._archiveId) || operationBusy;
   cards = [];
   captures.replaceChildren();
   getElement("Timeline").style.display = "none";
@@ -156,15 +168,6 @@ function renderSelectedSession() {
     const timestamp = document.createElement("div");
     timestamp.className = "small text-muted mt-1";
     const cardState = { timeline, user, button, preview, placeholder, timestamp, image: undefined };
-    preview.addEventListener("load", () => {
-      preview.style.display = "";
-      placeholder.style.display = "none";
-    });
-    preview.addEventListener("error", () => {
-      preview.style.display = "none";
-      placeholder.textContent = "No s'ha pogut carregar la captura";
-      placeholder.style.display = "";
-    });
     button.addEventListener("click", () => {
       if (cardState.image) openMachineSession(cardState.image);
     });
@@ -205,11 +208,34 @@ function renderTime(time) {
     if (card.image === image) continue;
     card.image = image;
     if (image) {
-      card.placeholder.textContent = "Carregant captura...";
-      card.placeholder.style.display = "";
-      card.preview.style.display = "none";
-      card.preview.alt = `Captura de ${image.userLabel || image.alumne}`;
-      card.preview.src = getBaseUrl() + image.url;
+      const nextPreview = new Image();
+      nextPreview.alt = `Captura de ${image.userLabel || image.alumne}`;
+      nextPreview.onload = () => {
+        if (card.image !== image) return;
+        card.preview.replaceWith(nextPreview);
+        card.preview = nextPreview;
+        card.preview.style.display = "";
+        card.placeholder.style.display = "none";
+      };
+      nextPreview.onerror = () => {
+        if (card.image !== image || card.preview.naturalWidth > 0) return;
+        card.placeholder.textContent = "No s'ha pogut carregar la captura";
+        card.placeholder.style.display = "";
+      };
+      if (card.preview.naturalWidth === 0) {
+        card.placeholder.textContent = "Carregant captura...";
+        card.placeholder.style.display = "";
+      }
+      screenshotUrl(image, getBaseUrl()).then(url => {
+        if (card.image === image) nextPreview.src = url;
+      }).catch(error => {
+        console.error("[CLASS_SCREENSHOTS_HIST] Error llegint captura:", error);
+        if (card.image === image) {
+          card.preview.style.display = "none";
+          card.placeholder.textContent = `No s'ha pogut carregar la captura: ${error.message}`;
+          card.placeholder.style.display = "";
+        }
+      });
     } else {
       card.preview.removeAttribute("src");
       card.preview.style.display = "none";
@@ -250,10 +276,11 @@ function togglePlayback() {
   schedulePlayback();
 }
 
-async function loadClassSessions(groupId) {
+async function loadClassSessions(groupId, signal) {
   const version = ++loadVersion;
   stopPlayback();
   currentSession = null;
+  getElement("Export").disabled = true;
   cards = [];
   const loading = getElement("Loading");
   const error = getElement("Error");
@@ -265,6 +292,7 @@ async function loadClassSessions(groupId) {
   getElement("Timeline").style.display = "none";
   loading.style.display = "block";
   error.style.display = "none";
+  error.className = "alert alert-danger";
   getElement("Captures").replaceChildren();
 
   try {
@@ -272,7 +300,7 @@ async function loadClassSessions(groupId) {
     if (!baseUrl) throw new Error("URL del servidor no configurada");
     const response = await fetch(
       `${baseUrl}/api/v1/screenshots/groups/${encodeURIComponent(groupId)}/sessions`,
-      { headers: { Authorization: `Bearer ${getAuthToken()}` } }
+      { headers: { Authorization: `Bearer ${getAuthToken()}` }, signal }
     );
     const result = await response.json();
     if (version !== loadVersion) return;
@@ -293,44 +321,204 @@ async function loadClassSessions(groupId) {
     }
 
     currentSessions = sessions;
-    select.replaceChildren();
-    for (const session of currentSessions) {
-      const option = document.createElement("option");
-      option.value = session.id;
-      option.textContent = formatClassSession(session);
-      select.appendChild(option);
-    }
-    getElement("Empty").style.display = currentSessions.length === 0 ? "block" : "none";
-    if (currentSessions.length > 0) renderSelectedSession();
   } catch (loadError) {
     if (version !== loadVersion) return;
     console.error("[CLASS_SCREENSHOTS_HIST] Error carregant sessions:", loadError);
     error.textContent = `No s’han pogut carregar les sessions: ${loadError.message}`;
     error.style.display = "block";
   } finally {
-    if (version === loadVersion) loading.style.display = "none";
+    if (version === loadVersion) {
+      loading.style.display = "none";
+      try {
+        populateSessions(groupId);
+      } catch (renderError) {
+        console.error("[CLASS_SCREENSHOTS_HIST] Error mostrant sessions:", renderError);
+        error.textContent = `No s'han pogut mostrar les sessions: ${renderError.message}`;
+        error.style.display = "block";
+      }
+    }
   }
 }
 
 function openMachineSession(image) {
+  stopPlayback();
+  const localData = currentSession?._archiveId ? localStudentData(currentSession, image.alumne) : null;
+  openingIndividual = true;
   const modalElement = document.getElementById(MODAL_ID);
   modalElement.addEventListener("hidden.bs.modal", () => {
     openScreenshotsHistory(image.alumne, {
       machineId: image.machineId,
       sessionId: image.sessionId,
       timestamp: image.timestamp,
-    });
+    }, () => modalInstance.show(), localData);
   }, { once: true });
   modalInstance.hide();
+}
+
+function sessionKey(session) {
+  return session._archiveId ? `local:${session._archiveId}` : `server:${session.id}`;
+}
+
+function populateSessions(groupId, selectedKey) {
+  const select = getElement("SessionSelect");
+  currentSessions = currentSessions.filter(session => !session._archiveId).concat(localSessions(groupId));
+  select.replaceChildren();
+  for (const session of currentSessions) {
+    const option = document.createElement("option");
+    option.value = sessionKey(session);
+    option.textContent = `${session._archiveId ? 'Còpia local · ' : ''}${formatClassSession(session)}`;
+    select.appendChild(option);
+  }
+  if (currentSessions.length === 0) {
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Cap sessió";
+    select.appendChild(placeholder);
+  }
+  const open = document.createElement("option");
+  open.value = "open-local";
+  open.textContent = "Obrir una còpia local...";
+  select.appendChild(open);
+  if (selectedKey && currentSessions.some(session => sessionKey(session) === selectedKey)) select.value = selectedKey;
+  getElement("Empty").style.display = currentSessions.length === 0 ? "block" : "none";
+  renderSelectedSession();
+}
+
+function setBusy(busy) {
+  operationBusy = busy;
+  getElement("Operation").style.display = busy ? "" : "none";
+  getElement("Export").disabled = busy || !currentSession || Boolean(currentSession._archiveId);
+  getElement("Refresh").disabled = busy;
+  getElement("SessionSelect").disabled = busy;
+}
+
+async function openLocalArchive(file) {
+  const auth = getAuthManager();
+  if (!auth?.isAuthenticated || !auth.authToken) throw new Error("Cal estar connectat i autenticat");
+  const username = auth.currentCredentials?.username;
+  const select = getElement("SessionSelect");
+  const previousGroup = select.dataset.groupId;
+  const previousKey = currentSession ? sessionKey(currentSession) : null;
+  const previousSessions = currentSessions.filter(session => !session._archiveId);
+  const controller = new AbortController();
+  operationAbort = controller;
+  let archive = null;
+  let committed = false;
+  let loadingVersion;
+  setBusy(true);
+  try {
+    archive = await window.electronAPI.openScreenshotArchive(file);
+    if (!archive) return;
+    if (controller.signal.aborted) throw new Error("Operació cancel·lada");
+    if (!auth.isAuthenticated || !auth.authToken || auth.currentCredentials?.username !== username) {
+      throw new Error("La sessió d'autenticació ha finalitzat");
+    }
+    const loading = loadClassSessions(archive.session.groupId, controller.signal);
+    loadingVersion = loadVersion;
+    await loading;
+    if (controller.signal.aborted || loadingVersion !== loadVersion) {
+      throw new Error("Operació cancel·lada");
+    }
+    if (!auth.isAuthenticated || !auth.authToken || auth.currentCredentials?.username !== username) {
+      throw new Error("La sessió d'autenticació ha finalitzat");
+    }
+    const session = rememberArchive(archive, username);
+    committed = true;
+    const groupSelector = document.getElementById("grupSelector");
+    const available = [...(groupSelector?.options || [])].some(option => option.value === session.groupId && !option.disabled);
+    if (available) {
+      groupSelector.value = session.groupId;
+      groupSelector.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    select.dataset.groupId = session.groupId;
+    document.getElementById(MODAL_ID).querySelector(".modal-title").textContent = `Historial de captures — ${session.groupId}`;
+    populateSessions(session.groupId, sessionKey(session));
+    if (!available) {
+      getElement("Error").textContent = "El grup no està disponible al servidor; es mostra la còpia en context històric.";
+      getElement("Error").style.display = "block";
+    }
+  } catch (error) {
+    if (!committed && loadingVersion !== undefined && loadingVersion === loadVersion) {
+      currentSessions = previousSessions;
+      populateSessions(previousGroup, previousKey);
+    }
+    throw error;
+  } finally {
+    try {
+      if (archive && !committed) await window.electronAPI.closeScreenshotArchive(archive.id);
+    } finally {
+      if (operationAbort === controller) operationAbort = null;
+      setBusy(false);
+    }
+  }
+}
+
+async function performOperation(action) {
+  if (operationBusy) {
+    getElement("Error").className = "alert alert-danger";
+    getElement("Error").textContent = "Ja hi ha una operació de còpia en curs.";
+    getElement("Error").style.display = "block";
+    return;
+  }
+  try {
+    getElement("Error").style.display = "none";
+    await action();
+  } catch (error) {
+    console.error("[CLASS_SCREENSHOTS_HIST] Error en la còpia:", error);
+    getElement("Error").className = "alert alert-danger";
+    getElement("Error").textContent = `No s'ha pogut completar l'operació: ${error.message}`;
+    getElement("Error").style.display = "block";
+  }
 }
 
 function bindEvents() {
   if (eventsBound) return;
   eventsBound = true;
   historyGridZoom.attach(getElement("Captures"));
+  window.electronAPI.onScreenshotArchiveProgress(({ text, current, total }) => {
+    getElement("OperationText").textContent = total ? `${text} ${current} / ${total}` : text;
+  });
+  getElement("Cancel").addEventListener("click", () => {
+    operationAbort?.abort();
+    window.electronAPI.cancelScreenshotArchive();
+  });
+  getElement("Export").addEventListener("click", () => performOperation(async () => {
+    const auth = getAuthManager();
+    if (!currentSession || currentSession._archiveId || !auth?.isAuthenticated) throw new Error("Cal una sessió del servidor i autenticació");
+    setBusy(true);
+    try {
+      const saved = await window.electronAPI.exportScreenshotArchive({
+        serverUrl: auth.serverUrl, token: auth.authToken, user: auth.currentCredentials?.username,
+        groupId: currentSession.groupId, sessionId: currentSession.id, startedAt: currentSession.startedAt,
+      });
+      if (saved) {
+        getElement("Error").textContent = "Còpia descarregada correctament.";
+        getElement("Error").className = "alert alert-success";
+        getElement("Error").style.display = "block";
+      }
+    } finally { setBusy(false); }
+  }));
+  const modal = document.getElementById(MODAL_ID);
+  modal.addEventListener("dragover", event => { event.preventDefault(); });
+  modal.addEventListener("drop", event => {
+    event.preventDefault();
+    const files = [...event.dataTransfer.files];
+    if (files.length !== 1 || !files[0].path) {
+      performOperation(() => { throw new Error("Arrossega un únic fitxer .pb.zip"); });
+      return;
+    }
+    performOperation(() => openLocalArchive(files[0].path));
+  });
   getElement("SessionSelect").addEventListener("change", () => {
+    if (getElement("SessionSelect").value === "open-local") {
+      const previous = currentSession ? sessionKey(currentSession) : null;
+      getElement("SessionSelect").value = previous || "";
+      performOperation(() => openLocalArchive());
+      return;
+    }
     try {
       getElement("Error").style.display = "none";
+      getElement("Error").className = "alert alert-danger";
       renderSelectedSession();
     } catch (error) {
       stopPlayback();
@@ -354,6 +542,12 @@ function bindEvents() {
   document.getElementById(MODAL_ID).addEventListener("hidden.bs.modal", () => {
     stopPlayback();
     loadVersion++;
+    if (openingIndividual) openingIndividual = false;
+    else setArchiveViewing(false);
+    if (operationBusy) {
+      operationAbort?.abort();
+      window.electronAPI.cancelScreenshotArchive();
+    }
   });
   getElement("Refresh").addEventListener("click", () => {
     const groupId = getElement("SessionSelect").dataset.groupId;
@@ -381,3 +575,10 @@ export async function openClassScreenshotsHistory(groupId) {
 export function closeClassScreenshotsHistory() {
   if (modalInstance) modalInstance.hide();
 }
+
+window.addEventListener("auth:logout", () => {
+  currentSessions = [];
+  currentSession = null;
+  cards = [];
+  closeClassScreenshotsHistory();
+});

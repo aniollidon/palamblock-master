@@ -32,6 +32,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Detecció de xarxa WiFi actual (per comprovar xarxa esperada)
   getCurrentSSID: () => ipcRenderer.invoke("get-current-ssid"),
+
+  exportScreenshotArchive: (options) => ipcRenderer.invoke("screenshot-archive-export", options),
+  openScreenshotArchive: (file) => ipcRenderer.invoke("screenshot-archive-open", file),
+  screenshotArchiveImage: (id, name) => ipcRenderer.invoke("screenshot-archive-image", id, name),
+  closeScreenshotArchive: (id) => ipcRenderer.invoke("screenshot-archive-close", id),
+  cancelScreenshotArchive: () => ipcRenderer.invoke("screenshot-archive-cancel"),
+  clearScreenshotArchives: () => ipcRenderer.invoke("screenshot-archive-clear"),
+  onScreenshotArchiveProgress: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on("screenshot-archive-progress", listener);
+    return () => ipcRenderer.removeListener("screenshot-archive-progress", listener);
+  },
 });
 
 // APIs específiques per PalamBlock

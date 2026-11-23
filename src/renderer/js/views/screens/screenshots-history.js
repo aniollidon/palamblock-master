@@ -5,6 +5,8 @@
 
 import { createBootstrapModal, cleanupOrphanBootstrapBackdrops } from "../../utils/dom-helpers.js";
 import { getAuthManager } from "../../core/container-helpers.js";
+import { screenshotUrl, setArchiveViewing } from "./screenshot-archive.mjs";
+import { createCaptureImageLoader } from "./capture-image-loader.mjs";
 
 // ─── Injecta el modal al DOM un sol cop ─────────────────────────
 let modalInjected = false;
@@ -48,8 +50,9 @@ function ensureModalInDOM() {
           <div id="screenshotsHistSessionInfo" class="mb-2 small text-muted"></div>
           <div id="screenshotsHistEmpty" class="text-center py-4 text-muted" style="display:none;"><p>No hi ha captures en aquesta sessió.</p></div>
           <div id="screenshotsHistPlayer" style="display:none;">
-            <div class="text-center mb-2 position-relative" id="screenshotsHistImageContainer" style="background:#000;border-radius:6px;overflow:hidden;cursor:pointer;">
-              <img id="screenshotsHistImage" src="" alt="Captura" style="max-width:100%;max-height:55vh;object-fit:contain;" />
+            <div class="text-center mb-2 position-relative" id="screenshotsHistImageContainer" style="background:#000;border-radius:6px;overflow:hidden;cursor:pointer;height:55vh;">
+              <img id="screenshotsHistImage" src="" alt="Captura" style="width:100%;height:100%;object-fit:contain;" />
+              <div id="screenshotsHistImageLoading" class="position-absolute top-0 start-0 m-2 px-2 py-1 bg-dark bg-opacity-75 rounded small text-white" role="status" style="display:none;">Carregant captura...</div>
               <div id="screenshotsHistTimestamp" class="position-absolute bottom-0 start-0 m-2 px-2 py-1 bg-dark bg-opacity-75 rounded small text-white"></div>
               <button id="screenshotsHistFullscreenBtn" class="btn btn-sm btn-dark position-absolute top-0 end-0 m-2" title="Pantalla completa">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrows-fullscreen" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.828 10.172a.5.5 0 0 0-.707 0l-4.096 4.096V11.5a.5.5 0 0 0-1 0v3.975a.5.5 0 0 0 .5.5H4.5a.5.5 0 0 0 0-1H1.732l4.096-4.096a.5.5 0 0 0 0-.707m4.344 0a.5.5 0 0 1 .707 0l4.096 4.096V11.5a.5.5 0 1 1 1 0v3.975a.5.5 0 0 1-.5.5H11.5a.5.5 0 0 1 0-1h2.768l-4.096-4.096a.5.5 0 0 1 0-.707m0-4.344a.5.5 0 0 0 .707 0l4.096-4.096V4.5a.5.5 0 1 0 1 0V.525a.5.5 0 0 0-.5-.5H11.5a.5.5 0 0 0 0 1h2.768l-4.096 4.096a.5.5 0 0 0 0 .707m-4.344 0a.5.5 0 0 1-.707 0L1.025 1.732V4.5a.5.5 0 0 1-1 0V.525a.5.5 0 0 1 .5-.5H4.5a.5.5 0 0 1 0 1H1.732l4.096 4.096a.5.5 0 0 1 0 .707"/></svg>
@@ -80,6 +83,7 @@ function ensureModalInDOM() {
         </div>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="screenshotsHistReturnToGroup" style="display:none;">Tornar al grup</button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tancar</button>
       </div>
     </div>
@@ -129,6 +133,10 @@ let isPlaying = false;
 let playbackTimer = null;
 let playbackSpeed = PLAYBACK_SPEEDS.normal;
 let modalInstance = null;
+let returnToGroup = null;
+let returnRequested = false;
+let loadVersion = 0;
+let localHistory = false;
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -201,6 +209,31 @@ function resolveImageUrl(relativeUrl) {
   return getBaseUrl() + relativeUrl;
 }
 
+const captureImageLoader = createCaptureImageLoader({
+  resolveUrl: image => image._archiveId
+    ? screenshotUrl(image, getBaseUrl())
+    : resolveImageUrl(image.url),
+  isCurrent: image => currentImages[currentFrameIndex] === image,
+});
+
+function setCaptureImage(element, image, timestamp) {
+  const d = dom();
+  const loading = element === d.image ? d.imageLoading : null;
+  captureImageLoader.load(element, image, {
+    onLoading: () => { if (loading) loading.style.display = ""; },
+    onDisplayed: () => {
+      if (loading) loading.style.display = "none";
+      timestamp.textContent = formatTimestamp(image.timestamp);
+    },
+    onError: error => {
+      if (loading) loading.style.display = "none";
+      stopPlayback();
+      console.error("[SCREENSHOTS_HIST] Error llegint captura local:", error);
+      d.sessionInfo.textContent = `No s'ha pogut llegir la captura: ${error.message}`;
+    },
+  });
+}
+
 // ─── DOM refs ────────────────────────────────────────────────────
 
 function $(id) { return document.getElementById(id); }
@@ -216,6 +249,7 @@ function dom() {
     empty: $("screenshotsHistEmpty"),
     player: $("screenshotsHistPlayer"),
     image: $("screenshotsHistImage"),
+    imageLoading: $("screenshotsHistImageLoading"),
     timestamp: $("screenshotsHistTimestamp"),
     fullscreenBtn: $("screenshotsHistFullscreenBtn"),
     prevBtn: $("screenshotsHistPrevBtn"),
@@ -225,6 +259,7 @@ function dom() {
     speedSelect: $("screenshotsHistSpeedSelect"),
     progressBar: $("screenshotsHistProgressBar"),
     imageContainer: $("screenshotsHistImageContainer"),
+    returnToGroupBtn: $("screenshotsHistReturnToGroup"),
     fullscreenOverlay: $("screenshotsHistFullscreenOverlay"),
     fullscreenImg: $("screenshotsHistFullscreenImg"),
     fullscreenTimestamp: $("screenshotsHistFullscreenTimestamp"),
@@ -360,7 +395,7 @@ function onSessionChange(targetTimestamp = null) {
   // Info de la sessió
   const userInfo = session.displayName || session.user || "Sense usuari temporal";
   const timeRange = formatTimeShort(session.images?.[0]?.timestamp) + " – " + formatTimeShort(session.images?.[session.images.length - 1]?.timestamp);
-  d.sessionInfo.innerHTML = `<strong>${userInfo}</strong> · ${timeRange} · ${session.imageCount} captures`;
+  d.sessionInfo.textContent = `${userInfo} · ${timeRange} · ${session.imageCount} captures`;
 
   currentImages = session.images || [];
   currentFrameIndex = 0;
@@ -403,8 +438,7 @@ function goToFrame(index) {
 
   const img = currentImages[currentFrameIndex];
   const d = dom();
-  d.image.src = resolveImageUrl(img.url);
-  d.timestamp.textContent = formatTimestamp(img.timestamp);
+  setCaptureImage(d.image, img, d.timestamp);
   d.frameInfo.textContent = `${currentFrameIndex + 1} / ${currentImages.length}`;
   d.progressBar.value = currentImages.length > 1
     ? Math.round((currentFrameIndex / (currentImages.length - 1)) * 100)
@@ -423,8 +457,7 @@ function syncFullscreenImage() {
   // Reset zoom/pan en canviar de frame
   resetFullscreenTransform();
 
-  d.fullscreenImg.src = resolveImageUrl(img.url);
-  d.fullscreenTimestamp.textContent = formatTimestamp(img.timestamp);
+  setCaptureImage(d.fullscreenImg, img, d.fullscreenTimestamp);
   updateFullscreenFrameInfo();
 
   // Reaplicar transformació quan la nova imatge es carregui
@@ -490,11 +523,7 @@ function updatePlayButton() {
     <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
   </svg>`;
 
-  if (isPlaying) {
-    d.playBtn.innerHTML = pauseHTML;
-  } else {
-    d.playBtn.innerHTML = playHTML;
-  }
+  if (d.playBtn) d.playBtn.innerHTML = isPlaying ? pauseHTML : playHTML;
   // Sincronitzar botó del fullscreen
   updateFullscreenPlayButton();
 }
@@ -523,8 +552,7 @@ function openImageFullscreen() {
   fsPanX = 0;
   fsPanY = 0;
 
-  d.fullscreenImg.src = resolveImageUrl(img.url);
-  d.fullscreenTimestamp.textContent = formatTimestamp(img.timestamp);
+  setCaptureImage(d.fullscreenImg, img, d.fullscreenTimestamp);
   d.fullscreenOverlay.style.display = "block";
 
   // Quan la imatge es carregui, obtenim les dimensions naturals
@@ -560,7 +588,7 @@ function closeImageFullscreen() {
 
 function hideFullscreenOverlay() {
   const d = dom();
-  d.fullscreenOverlay.style.display = "none";
+  if (d.fullscreenOverlay) d.fullscreenOverlay.style.display = "none";
   clearFullscreenControlsTimer();
 }
 
@@ -679,6 +707,7 @@ function updateFullscreenFrameInfo() {
 function updateFullscreenPlayButton() {
   const d = dom();
   const btn = d.fsPlayBtn;
+  if (!btn) return;
   if (isPlaying) {
     btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/></svg>`;
     btn.title = "Pausa";
@@ -876,6 +905,11 @@ function bindEvents() {
 
   d.sessionSelect.addEventListener("change", onSessionChange);
   d.refreshBtn.addEventListener("click", refreshCurrentSession);
+  d.returnToGroupBtn.addEventListener("click", () => {
+    if (!returnToGroup || returnRequested) return;
+    returnRequested = true;
+    modalInstance.hide();
+  });
 
   d.playBtn.addEventListener("click", togglePlayPause);
   d.prevBtn.addEventListener("click", () => {
@@ -958,7 +992,7 @@ function handleKeyDown(e) {
  * Obre el modal d'historial de captures per a un alumne.
  * @param {string} alumne - Nom de l'alumne
  */
-export async function openScreenshotsHistory(alumne, target = null) {
+export async function openScreenshotsHistory(alumne, target = null, onReturnToGroup = null, localData = null) {
   debugLog("Obrint historial per:", alumne);
 
   ensureModalInDOM();
@@ -977,6 +1011,19 @@ export async function openScreenshotsHistory(alumne, target = null) {
   }
 
   const d = dom();
+  localHistory = Boolean(localData);
+  if (d.refreshBtn) d.refreshBtn.style.display = localData ? "none" : "";
+  captureImageLoader.invalidate(d.image);
+  captureImageLoader.invalidate(d.fullscreenImg);
+  d.image.removeAttribute("src");
+  d.fullscreenImg.removeAttribute("src");
+  d.timestamp.textContent = "";
+  d.fullscreenTimestamp.textContent = "";
+  if (d.imageLoading) d.imageLoading.style.display = "none";
+  const version = ++loadVersion;
+  returnToGroup = onReturnToGroup;
+  returnRequested = false;
+  d.returnToGroupBtn.style.display = returnToGroup ? "" : "none";
   d.modalLabel.textContent = alumne;
   d.loading.style.display = "block";
   d.content.style.display = "none";
@@ -991,18 +1038,26 @@ export async function openScreenshotsHistory(alumne, target = null) {
 
   // Netejar fullscreen si el modal es tanca (Bootstrap dismiss)
   modalEl.addEventListener("hidden.bs.modal", () => {
+    loadVersion++;
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
     }
     hideFullscreenOverlay();
     stopPlayback();
+    const callback = returnRequested ? returnToGroup : null;
+    returnRequested = false;
+    returnToGroup = null;
+    if (localHistory && !callback) setArchiveViewing(false);
+    localHistory = false;
+    if (callback) callback();
   }, { once: true });
 
   modalInstance.show();
 
   // Carregar dades
   try {
-    const resp = await fetchScreenshots(alumne);
+    const resp = localData ? { status: "OK", data: localData } : await fetchScreenshots(alumne);
+    if (version !== loadVersion) return;
     if (resp.status !== "OK") {
       console.error("[SCREENSHOTS_HIST] Error de l'API:", resp.message);
       d.loading.innerHTML = `<p class="text-danger">Error: ${resp.message || "Desconegut"}</p>`;
@@ -1022,6 +1077,7 @@ export async function openScreenshotsHistory(alumne, target = null) {
 
     populateFlatSessionSelect(flatSessions, target);
   } catch (err) {
+    if (version !== loadVersion) return;
     console.error("[SCREENSHOTS_HIST] Error carregant:", err);
     d.loading.innerHTML = `<p class="text-danger">Error carregant dades: ${err.message}</p>`;
   }
@@ -1031,6 +1087,9 @@ export async function openScreenshotsHistory(alumne, target = null) {
  * Neteja recursos quan es tanca el modal.
  */
 export function closeScreenshotsHistory() {
+  loadVersion++;
+  returnToGroup = null;
+  returnRequested = false;
   stopPlayback();
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
@@ -1040,3 +1099,10 @@ export function closeScreenshotsHistory() {
   currentImages = [];
   cleanupOrphanBootstrapBackdrops();
 }
+
+window.addEventListener("auth:logout", () => {
+  if (!localHistory) return;
+  localHistory = false;
+  closeScreenshotsHistory();
+  if (modalInstance) modalInstance.hide();
+});

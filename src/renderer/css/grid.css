@@ -73,6 +73,12 @@
     position: relative;
 }
 
+#modalClassScreenshotsHistory .modal-dialog {
+    max-width: none;
+    margin-left: 24px;
+    margin-right: 24px;
+}
+
 .class-screenshots-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--grid-card-width, 300px), 0fr));
