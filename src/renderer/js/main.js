@@ -7,6 +7,7 @@ import { ServiceContainer } from "./core/service-container.js";
 import { ViewManager } from "./core/view-manager.js";
 import { AuthManager } from "./core/auth-manager.js";
 import { SocketManager } from "./core/socket.js";
+import { clearState, detachAdminSocket } from "./core/store.js";
 
 // Crear el Service Container global
 const container = new ServiceContainer();
@@ -119,6 +120,14 @@ async function initializeApp() {
     // 5. Escoltar esdeveniments d'autenticació
     window.addEventListener("auth:ready", handleAuthReady);
     window.addEventListener("auth:logout", handleLogout);
+    window.addEventListener("socket:disconnected", () => {
+      const banner = document.getElementById("connectionStatus");
+      if (banner) banner.classList.remove("d-none");
+    });
+    window.addEventListener("socket:ready", () => {
+      const banner = document.getElementById("connectionStatus");
+      if (banner) banner.classList.add("d-none");
+    });
 
     // 6. Inicialitzar autenticació (carrega credencials guardades)
     await authManager.initialize();
@@ -153,6 +162,8 @@ async function handleAuthReady(event) {
   console.log("[MAIN] Autenticació completada");
 
   try {
+    await viewManager.navigationQueue;
+    if (!authManager.isAuthenticated) return;
     // El socket ja s'ha inicialitzat des d'AuthManager.initializeSocketConnectionWithValidation()
     // NO cal tornar-lo a inicialitzar aquí per evitar connexions duplicades
 
@@ -173,17 +184,15 @@ async function handleAuthReady(event) {
 function handleLogout() {
   console.log("[MAIN] Logout detectat, netejant estat...");
 
+  socketManager?.disconnectSocket();
+  detachAdminSocket();
+  clearState();
+
   // Netejar vista actual
   if (viewManager) {
     viewManager.clearCurrentView();
   }
 
-  // Netejar contenidor principal
-  const main =
-    document.getElementById("appMain") || document.querySelector("main");
-  if (main) {
-    main.innerHTML = "";
-  }
 }
 
 /**

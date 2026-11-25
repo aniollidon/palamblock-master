@@ -15,7 +15,7 @@ import {
   requestInitialData,
   getState,
 } from "../../core/store.js";
-import { initCastSidebarListeners } from "./cast-view.js";
+import { cancelPendingCast, initCastSidebarListeners } from "./cast-view.js";
 import { getSocket } from "../../core/container-helpers.js";
 import { closeScreenshotsHistory } from "./screenshots-history.js";
 import {
@@ -23,6 +23,8 @@ import {
   openClassScreenshotsHistory,
 } from "./class-screenshots-history.js";
 import { createGridZoom } from "./grid-zoom.mjs";
+import { socketRequest } from "../../utils/socket-request.js";
+import { showErrorToast, showToast } from "../../utils/toast.js";
 
 // --- Debug util ---
 function debugLog(...args) {
@@ -37,6 +39,8 @@ let boundElements = new Map(); // Canviat a Map per guardar element -> handler
 let professorNetworkCheckInterval = null;
 let groupHistoryButtonHandler = null;
 let groupSelectorChangeHandler = null;
+let pendingTimers = [];
+let groupPowerOffPending = false;
 const liveGridZoom = createGridZoom();
 
 function updateGroupHistoryButton() {
@@ -44,6 +48,17 @@ function updateGroupHistoryButton() {
   const groupSelector = document.getElementById("grupSelector");
   const selectedOption = groupSelector?.selectedOptions?.[0];
   if (button) button.disabled = !selectedOption?.value || selectedOption.disabled;
+}
+
+function updateRoleControls() {
+  const button = document.getElementById("globalGroupPowerOffButton");
+  const selected = document.getElementById("grupSelector")?.selectedOptions?.[0];
+  if (!button) return;
+  const auth = window.authManager;
+  const allowed = !!selected?.value && !selected.disabled &&
+    (auth?.isSuperAdmin() || auth?.getAdminGrups()?.includes(selected.value));
+  button.disabled = groupPowerOffPending || !allowed;
+  button.title = allowed ? "Apaga el grup" : "Selecciona un grup autoritzat";
 }
 
 /**
@@ -133,20 +148,39 @@ function bind() {
 
   const groupSelectorForHistory = document.getElementById("grupSelector");
   if (groupSelectorForHistory && !groupSelectorChangeHandler) {
-    groupSelectorChangeHandler = updateGroupHistoryButton;
+    groupSelectorChangeHandler = () => {
+      updateGroupHistoryButton();
+      updateRoleControls();
+    };
     groupSelectorForHistory.addEventListener("change", groupSelectorChangeHandler);
   }
   updateGroupHistoryButton();
+  updateRoleControls();
+  window.addEventListener("auth:role-changed", updateRoleControls);
 
   // Power off all button
   const powerBtn = document.getElementById("globalGroupPowerOffButton");
   if (powerBtn && !boundElements.has(powerBtn)) {
     const handlePowerOff = async () => {
+      if (groupPowerOffPending) return;
       const currentGrup = document.getElementById("grupSelector")?.value;
       const s = await ensureSocket();
-      if (s && currentGrup) {
-        debugLog("Power off all per grup:", currentGrup);
-        s.emit("powerOffAll", { grup: currentGrup });
+      if (!currentGrup || !s?.connected) {
+        showErrorToast("No hi ha connexió amb el servidor o cap grup seleccionat.");
+        return;
+      }
+      if (!confirm(`Vols apagar totes les màquines connectades dels alumnes del grup ${currentGrup}, encara que siguin fora de l'aula?`)) return;
+      groupPowerOffPending = true;
+      powerBtn.disabled = true;
+      try {
+        const response = await socketRequest(s, "powerOffAll", { grup: currentGrup, confirmed: true });
+        if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+        showToast(`Ordre enviada a ${response.data.sent} màquines. Comprova'n l'estat a les pantalles.`);
+      } catch (error) {
+        showErrorToast(error.message);
+      } finally {
+        groupPowerOffPending = false;
+        updateRoleControls();
       }
     };
     powerBtn.addEventListener("click", handlePowerOff);
@@ -164,7 +198,7 @@ function bind() {
     };
     grupSelector.addEventListener("focus", handleGrupSelectorFocus);
     grupSelector.addEventListener("click", handleGrupSelectorFocus);
-    boundElements.set(grupSelector, { event: "focus", handler: handleGrupSelectorFocus });
+    boundElements.set(grupSelector, { event: "focus", handler: handleGrupSelectorFocus, extraEvent: "click" });
   }
 
   // Store listeners
@@ -176,6 +210,7 @@ function bind() {
       if (grups_disponibles && maquines_disponibles) {
         preparaSelectorGrups();
         updateGroupHistoryButton();
+        updateRoleControls();
       }
     })
   );
@@ -188,6 +223,7 @@ function bind() {
       if (grups_disponibles && maquines_disponibles) {
         preparaSelectorGrups();
         updateGroupHistoryButton();
+        updateRoleControls();
       }
     })
   );
@@ -243,7 +279,7 @@ export async function init() {
   requestInitialData("screens-mount");
 
   // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
-  setTimeout(() => {
+  pendingTimers.push(setTimeout(() => {
     if (!grups_disponibles || !maquines_disponibles) {
       console.warn(
         "[SCREENS-VIEW] No s'han rebut totes les dades després de 2s, reintentant...",
@@ -251,21 +287,21 @@ export async function init() {
       );
       requestInitialData("screens-mount-retry");
     }
-  }, 2000);
+  }, 2000));
 
   // Inicialitzar listeners de cast sidebar (després d'un tick)
-  setTimeout(() => {
+  pendingTimers.push(setTimeout(() => {
     try {
       initCastSidebarListeners();
     } catch (error) {
       console.warn("[SCREENS_VIEW] Error inicialitzant cast sidebar:", error);
     }
-  }, 0);
+  }, 0));
 
   // Enllaçar navegació (després d'un tick)
-  setTimeout(() => {
+  pendingTimers.push(setTimeout(() => {
     bindNavigation();
-  }, 0);
+  }, 0));
 
   // Retornar objecte amb destroy
   return { destroy };
@@ -277,6 +313,10 @@ export async function init() {
 export function destroy() {
   debugLog("DESTRUINT VISTA");
   liveGridZoom.detach();
+  cancelPendingCast();
+  for (const timer of pendingTimers) clearTimeout(timer);
+  pendingTimers = [];
+  window.removeEventListener("auth:role-changed", updateRoleControls);
 
   // Tancar modal d'historial si està obert
   closeScreenshotsHistory();
@@ -291,9 +331,10 @@ export function destroy() {
   unsubscribers = [];
 
   // Netejar event listeners d'elements enllaçats
-  for (const [element, { event, handler }] of boundElements.entries()) {
+  for (const [element, { event, handler, extraEvent }] of boundElements.entries()) {
     try {
       element.removeEventListener(event, handler);
+      if (extraEvent) element.removeEventListener(extraEvent, handler);
     } catch (_) {}
   }
   boundElements.clear();

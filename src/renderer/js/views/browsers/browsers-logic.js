@@ -9,14 +9,42 @@ import {
 import { toogleSideBar } from "./historial-view.js";
 import { compareEqualTabs } from "../../utils/validators.js";
 import { isSuperUser } from "../../utils/validators.js";
-import { getState } from "../../core/store.js";
+import { getState, requestInitialData } from "../../core/store.js";
 import { refreshWarningsForGroup } from "./warnings-view.js";
+import { getSocket } from "../../core/container-helpers.js";
+import { socketRequest } from "../../utils/socket-request.js";
+import { showErrorToast } from "../../utils/toast.js";
 
 const storedAlumneInfo = {};
+const pendingTabClosures = new Set();
+const pendingAlumneStatus = new Set();
 let grupAlumnesList = {};
 let visibilityAlumnes = {};
 let chromeTabsObjects = {};
 const missingTempNameWarned = new Set();
+
+window.addEventListener("auth:logout", () => {
+  for (const alumne of Object.keys(storedAlumneInfo)) delete storedAlumneInfo[alumne];
+  grupAlumnesList = {};
+  visibilityAlumnes = {};
+  chromeTabsObjects = {};
+  missingTempNameWarned.clear();
+});
+
+export async function closeBrowserTab(alumne, browser, tabId) {
+  const key = JSON.stringify([alumne, browser, tabId]);
+  if (pendingTabClosures.has(key)) return;
+  pendingTabClosures.add(key);
+  try {
+    const response = await socketRequest(getSocket(), "closeTab", { alumne, browser, tabId });
+    if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+  } catch (error) {
+    showErrorToast(error.message);
+  } finally {
+    pendingTabClosures.delete(key);
+    if (getSocket()?.connected) requestInitialData("close-tab");
+  }
+}
 
 function asDisplayText(value, fallback) {
   if (typeof value === "string") {
@@ -128,8 +156,6 @@ export function drawAlumnesActivity(data) {
         alumneStatusButtonMain.classList.remove("btn-danger");
         alumneStatusButtonMain.classList.remove("btn-warning");
         alumneStatusButtonMain.classList.remove("btn-secondary");
-        alumneStatusButtonMain.removeAttribute("disabled");
-
         switch (status) {
           case "RuleFree":
             alumneStatusButtonMain.classList.add("btn-warning");
@@ -172,6 +198,8 @@ export function drawAlumnesActivity(data) {
         alumneStatusButtonMain.setAttribute("class", "btn dropdown-toggle");
         alumneStatusButtonMain.setAttribute("data-bs-toggle", "dropdown");
         alumneStatusButtonMain.setAttribute("aria-expanded", "false");
+        alumneStatusButtonMain.disabled = !window.authManager?.isSuperAdmin();
+        if (alumneStatusButtonMain.disabled) alumneStatusButtonMain.title = "Cal ser superadministrador";
         alumneStatusButton.appendChild(alumneStatusButtonMain);
         const alumneStatusButtonDropdown = document.createElement("ul");
         alumneStatusButtonDropdown.setAttribute("class", "dropdown-menu");
@@ -210,9 +238,22 @@ export function drawAlumnesActivity(data) {
                 break;
             }
 
-            obre_confirmacio(text_confirmacio, () => {
-              socket.emit("setAlumneStatus", { alumne: alumne, status: s.id });
-              setAlumneStatus(s.id);
+            obre_confirmacio(text_confirmacio, async () => {
+              if (pendingAlumneStatus.has(alumne)) return;
+              pendingAlumneStatus.add(alumne);
+              alumneStatusButtonMain.disabled = true;
+              try {
+                const response = await socketRequest(getSocket(), "setAlumneStatus", { alumne: alumne, status: s.id });
+                if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+                if (getSocket()?.connected) requestInitialData("alumne-status");
+              } catch (error) {
+                showErrorToast(error.message);
+                if (getSocket()?.connected) requestInitialData("alumne-status-error");
+              } finally {
+                pendingAlumneStatus.delete(alumne);
+                const button = document.getElementById(alumne + "-status-button-main");
+                if (button) button.disabled = !window.authManager?.isSuperAdmin();
+              }
             });
           };
           li.appendChild(a);
@@ -220,6 +261,7 @@ export function drawAlumnesActivity(data) {
         }
 
         setAlumneStatus(grupAlumnesList[grup].alumnes[alumne].status);
+        alumneStatusButtonMain.disabled = !window.authManager?.isSuperAdmin();
         alumneDivButtons.appendChild(alumneStatusButton);
         alumneDivButtons.appendChild(document.createTextNode(" "));
 
@@ -259,8 +301,16 @@ export function drawAlumnesActivity(data) {
           deleteButton.setAttribute("class", "btn btn-danger");
           deleteButton.setAttribute("type", "button");
           deleteButton.innerHTML = "Esborra historial";
-          deleteButton.onclick = () => {
-            socket.emit("deleteHistorialFromAlumne", { alumne: alumne });
+          deleteButton.onclick = async () => {
+            deleteButton.disabled = true;
+            try {
+              const response = await socketRequest(getSocket(), "deleteHistorialFromAlumne", { alumne });
+              if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+            } catch (error) {
+              showErrorToast(error.message);
+            } finally {
+              if (deleteButton.isConnected) deleteButton.disabled = false;
+            }
           };
           alumneDivButtons.appendChild(document.createTextNode(" "));
           alumneDivButtons.appendChild(deleteButton);
@@ -285,6 +335,11 @@ export function drawAlumnesActivity(data) {
         const alumneDivHeader = document.getElementById(alumne + "-header");
         const title = alumneDivHeader ? alumneDivHeader.querySelector("h3") : null;
         if (title) title.textContent = `Alumne: ${shownName}`;
+        alumneStatusButtonMain = document.getElementById(alumne + "-status-button-main");
+        if (alumneStatusButtonMain) {
+          setAlumneStatus(grupAlumnesList[grup].alumnes[alumne].status);
+          alumneStatusButtonMain.disabled = pendingAlumneStatus.has(alumne) || !window.authManager?.isSuperAdmin();
+        }
       }
 
       if (alumneInfo) {
@@ -365,14 +420,14 @@ export function drawAlumnesActivity(data) {
               //browserDiv.addEventListener('activeTabChange', ({ detail }) => console.log('Active tab changed', detail.tabEl))
               //browserDiv.addEventListener('tabAdd', ({ detail }) => console.log('Tab added', detail.tabEl))
               browserWin.addEventListener(
-                "tabRemove",
-                function tabRemoveListener({ detail }) {
-                  console.log("Tab removed", detail.tabEl);
-                  socket.emit("closeTab", {
-                    alumne: alumne,
-                    browser: browserName,
-                    tabId: detail.tabEl.info.tabId,
-                  });
+                "tabCloseRequest",
+                async function tabCloseRequestListener({ detail }) {
+                  detail.tabEl.setAttribute("aria-busy", "true");
+                  try {
+                    await closeBrowserTab(alumne, browserName, detail.tabEl.info.tabId);
+                  } finally {
+                    detail.tabEl.removeAttribute("aria-busy");
+                  }
                 }
               );
             } else {
@@ -503,39 +558,50 @@ function drawBrowsersGrup(grup) {
   );
 
   function setGrupStatus(status, send = false) {
+    if (send) {
+      let text_confirmacio;
+      if (status === "RuleFree") text_confirmacio =
+        "Segur que vols desactivar PalamBlock a tots els alumnes del grup? " +
+        "Això permetrà als alumnes accedir a qualsevol web, sense restriccions. Aquest canvi pot afectar " +
+        "altres professors i assignatures. No es recomana fer-ho. Si s'escau, reverteix aquest canvi un cop hagis acabat.";
+      if (status === "Blocked") text_confirmacio =
+        "Segur que vols activar el mode bloqueig total de PalamBlock per a tots els " +
+        "alumnes del grup? Això impedirà als alumnes accedir a qualsevol web, sense excepcions. Aquest " +
+        "canvi pot afectar altres professors i assignatures. Reverteix aquest canvi un cop hagis acabat.";
+      obre_confirmacio(text_confirmacio, async () => {
+        grupStatus.disabled = true;
+        try {
+          const response = await socketRequest(getSocket(), "setGrupStatus", { grup, status });
+          if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+          if (grupAlumnesList[grup]) grupAlumnesList[grup].status = status;
+          if (document.getElementById("grupSelector")?.value === grup) setGrupStatus(status);
+        } catch (error) {
+          showErrorToast(error.message);
+        } finally {
+          grupStatus.disabled = !window.authManager?.isSuperAdmin();
+        }
+      });
+      return;
+    }
     grupStatus.classList.remove("btn-warning");
     grupStatus.classList.remove("btn-success");
     grupStatus.classList.remove("btn-danger");
-    let text_confirmacio = undefined;
-
     if (status === "RuleOn") {
       grupStatus.classList.add("btn-success");
       grupStatus.innerHTML = "Filtre actiu";
     } else if (status === "RuleFree") {
       grupStatus.classList.add("btn-warning");
       grupStatus.innerHTML = "Desactivat";
-      text_confirmacio =
-        "Segur que vols desactivar PalamBlock a tots els alumnes del grup? " +
-        "Això permetrà als alumnes accedir a qualsevol web, sense restriccions. Aquest canvi pot afectar" +
-        " altres professors i assignatures. No es recomana fer-ho. Si s'escau, reverteix aquest canvi un cop hagis acabat.";
     } else if (status === "Blocked") {
       grupStatus.classList.add("btn-danger");
       grupStatus.innerHTML = "Tot bloquejat";
-      text_confirmacio =
-        "Segur que vols activar el mode bloqueig total de PalamBlock per a tots els " +
-        "alumnes del grup? Això impedirà als alumnes accedir a qualsevol web, sense excepcions. Aquest" +
-        " canvi pot afectar altres professors i assignatures. Reverteix aquest canvi un cop hagis acabat.";
     }
 
-    if (send) {
-      obre_confirmacio(text_confirmacio, () => {
-        socket.emit("setGrupStatus", { grup: grup, status: status });
-      });
-    }
   }
 
   grupStatus.classList.remove("btn-dark");
-  grupStatus.removeAttribute("disabled");
+  grupStatus.disabled = !window.authManager?.isSuperAdmin();
+  grupStatus.title = grupStatus.disabled ? "Cal ser superadministrador" : "";
   setGrupStatus(grupAlumnesList[grup].status);
 
   grupStatusRuleOn.onclick = (ev) => {

@@ -263,7 +263,7 @@
       tabEl
         .querySelector(".chrome-tab-close")
         .addEventListener("click", (e) => {
-          this.removeTab(tabEl);
+          this.emit("tabCloseRequest", { tabEl });
           closeMenu(e);
         });
     }
@@ -283,7 +283,7 @@
         .querySelector(".chrome-tab-content")
         .addEventListener("mouseup", (e) => {
           if (e.button === 1) {
-            this.removeTab(tabEl);
+            this.emit("tabCloseRequest", { tabEl });
             closeMenu(e);
           }
         });

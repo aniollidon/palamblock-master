@@ -11,6 +11,7 @@
 
 import { getSocket } from "../../core/container-helpers.js";
 import { showErrorToast } from "../../utils/toast.js";
+import { socketRequest } from "../../utils/socket-request.js";
 
 // ============================================
 // FUNCIONS AUXILIARS
@@ -22,22 +23,10 @@ import { showErrorToast } from "../../utils/toast.js";
  * @param {object} data - Dades a enviar
  * @returns {Promise} - Promesa amb el resultat de l'operació
  */
-function wsOperation(event, data) {
-  return new Promise((resolve, reject) => {
-    const socket = getSocket();
-    if (!socket || !socket.connected) {
-      reject(new Error("Socket no connectat"));
-      return;
-    }
-
-    socket.emit(event, data, (response) => {
-      if (response && response.status === "OK") {
-        resolve(response.data);
-      } else {
-        reject(new Error(response?.error || "Error desconegut"));
-      }
-    });
-  });
+async function wsOperation(event, data) {
+  const response = await socketRequest(getSocket(), event, data);
+  if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+  return response.data;
 }
 
 /**

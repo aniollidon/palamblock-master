@@ -5,9 +5,17 @@ import {
 import { getSocket } from "../../core/container-helpers.js";
 import { getState } from "../../core/store.js";
 import { openScreenshotsHistory } from "./screenshots-history.js";
+import { socketRequest } from "../../utils/socket-request.js";
+import { showErrorToast, showToast } from "../../utils/toast.js";
 
 let grupAlumnesList = {};
 let alumnesMachines = {};
+const pendingPowerOff = new Set();
+window.addEventListener("auth:logout", () => {
+  grupAlumnesList = {};
+  alumnesMachines = {};
+  updateCastStudentData(grupAlumnesList, alumnesMachines);
+});
 
 function asDisplayText(value, fallback) {
   if (typeof value === "string") {
@@ -182,11 +190,23 @@ function drawGridItem(alumne, maquina) {
                               <path d="M7.5 1v7h1V1z"/>
                               <path d="M3 8.812a5 5 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812"/>
                             </svg>`;
-  buttonOff.onclick = () => {
-    getSocket()?.emit("sendCommandToAlumne", {
-      alumne: alumne,
-      command: "apaga-tot",
-    });
+  buttonOff.onclick = async () => {
+    if (pendingPowerOff.has(alumne)) return;
+    pendingPowerOff.add(alumne);
+    buttonOff.disabled = true;
+    try {
+      const response = await socketRequest(getSocket(), "sendCommandToAlumne", {
+        alumne: alumne,
+        command: "apaga-tot",
+      });
+      if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+      showToast("Ordre enviada. Comprova l'estat de la màquina a la pantalla.");
+    } catch (error) {
+      showErrorToast(error.message);
+    } finally {
+      pendingPowerOff.delete(alumne);
+      if (buttonOff.isConnected) buttonOff.disabled = false;
+    }
   };
   itemButtons.appendChild(buttonOff);
 
@@ -342,9 +362,9 @@ function drawGridItem(alumne, maquina) {
       <path d="M3.5 2a.5.5 0 0 0-.5.5v12a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-12a.5.5 0 0 0-.5-.5H12a.5.5 0 0 1 0-1h.5A1.5 1.5 0 0 1 14 2.5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-12A1.5 1.5 0 0 1 3.5 1H4a.5.5 0 0 1 0 1z"/>
       <path d="M10 .5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5.5.5 0 0 1-.5.5.5.5 0 0 0-.5.5V2a.5.5 0 0 0 .5.5h5A.5.5 0 0 0 11 2v-.5a.5.5 0 0 0-.5-.5.5.5 0 0 1-.5-.5"/>
     </svg>`;
-  buttonCopyIP.onclick = () => {
+  buttonCopyIP.onclick = async () => {
     try {
-      navigator.clipboard.writeText(maquina.ip);
+      await navigator.clipboard.writeText(maquina.ip);
     } catch (e) {
       bootbox.alert({
         title: "No s'ha pogut accedir al portaretalls",
@@ -491,9 +511,7 @@ function drawGridItem(alumne, maquina) {
 
 function drawGridGrup(grupName) {
   // Activa els botons de grup
-  const offBtn = document.getElementById("globalGroupPowerOffButton");
   const castBtn = document.getElementById("globalGroupCastButton");
-  if (offBtn) offBtn.disabled = false;
   if (castBtn) castBtn.disabled = false;
 
   // Fes el grid

@@ -68,15 +68,14 @@ export class SocketManager {
 
     console.log(
       `[SOCKET] Creant connexió a ${serverUrl}`,
-      `\n  Usuari: ${socketQuery.user}`,
-      `\n  Token: ${socketQuery.authToken}`
+      `\n  Usuari: ${socketQuery.user}`
     );
 
     this.socket = io(serverUrl, {
       query: socketQuery,
       path: "/ws-admin",
       transports: ["websocket", "polling"],
-      timeout: 10000,
+      timeout: 15000,
       forceNew: true,
     });
 
@@ -93,7 +92,7 @@ export class SocketManager {
     if (!this.socket) return;
 
     // Connexió exitosa
-    this.socket.once("connect", () => {
+    this.socket.on("connect", () => {
       this.pendingConnection = false;
       console.log("[SOCKET] Connectat correctament");
 
@@ -142,6 +141,7 @@ export class SocketManager {
         this.authManager.adminRole = data?.role || 'admin';
         this.authManager.adminGrupsPermesos = data?.grupsPermesos || [];
       }
+      this.emitEvent("auth:role-changed", { role: data?.role });
       // Propagar expectedNetwork i remoteVncPassword al store
       // (abans que attachAdminSocket registri el listener)
       if (data && typeof data.expectedNetwork !== 'undefined') {
@@ -160,9 +160,10 @@ export class SocketManager {
         window.socket = null;
       }
 
-      // Si no és desconnexió voluntària, mostrar login
+      // Si no és desconnexió voluntària, esperar la reconnexió automàtica
       if (reason !== "io client disconnect") {
         this.handleUnexpectedDisconnect();
+        if (reason === "io server disconnect") this.socket.connect();
       }
     });
 
@@ -195,9 +196,7 @@ export class SocketManager {
         this.emitEvent("socket:auth-error", { error: message });
         this.handleAuthError("Autenticació fallida. Torna a iniciar sessió.");
       } else {
-        this.handleConnectionError(
-          "No s'ha pogut connectar amb el servidor. Verifica la configuració."
-        );
+        this.handleConnectionError("No s'ha pogut connectar amb el servidor. Reconnectant...");
       }
     });
   }
@@ -207,12 +206,7 @@ export class SocketManager {
    */
   handleUnexpectedDisconnect() {
     console.warn("[SOCKET] Desconnexió inesperada del servidor");
-
-    if (this.authManager) {
-      this.authManager.isAuthenticated = false;
-      this.authManager.authToken = null;
-      this.authManager.showLogin();
-    }
+    this.emitEvent("socket:disconnected");
   }
 
   /**
@@ -239,29 +233,11 @@ export class SocketManager {
    * @param {string} message - Missatge d'error
    */
   handleConnectionError(message) {
-    try {
-      this.socket?.disconnect();
-    } catch (error) {
-      console.warn("[SOCKET] Error desconnectant socket:", error);
-    }
-
-    if (window.socket === this.socket) {
-      window.socket = null;
-    }
-
     if (this.authManager) {
-      this.authManager.isAuthenticated = false;
-      this.authManager.authToken = null;
-      this.authManager.showLogin();
-
-      setTimeout(() => {
-        try {
-          this.authManager.showLoginError?.(message);
-        } catch (error) {
-          console.warn("[SOCKET] Error mostrant missatge d'error:", error);
-        }
-      }, 100);
+      this.authManager.showLoginSpinner(false);
+      this.authManager.showLoginError(message);
     }
+    this.emitEvent("socket:disconnected");
   }
 
   /**
@@ -328,6 +304,7 @@ export class SocketManager {
 
     this.socket = null;
     window.socket = null;
+    this.pendingConnection = false;
   }
 
   /**

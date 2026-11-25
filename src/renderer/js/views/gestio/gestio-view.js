@@ -25,6 +25,8 @@ let modalGrupInstance = null;
 let modalProfessorInstance = null;
 let socketListener = null;
 let socketListenerAdmins = null;
+let initialDataTimer = null;
+let mounted = false;
 
 // Event handlers (per cleanup)
 const eventHandlers = {
@@ -41,6 +43,24 @@ const eventHandlers = {
   filtreEstatGrups: null,
   cercaProfessors: null,
 };
+const pendingForms = new WeakSet();
+
+function preventDuplicateSubmit(handler) {
+  return async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (pendingForms.has(form)) return;
+    pendingForms.add(form);
+    const button = document.querySelector(`button[type="submit"][form="${form.id}"]`);
+    if (button) button.disabled = true;
+    try {
+      await handler(event);
+    } finally {
+      pendingForms.delete(form);
+      if (button) button.disabled = false;
+    }
+  };
+}
 
 // NOTA: window.GestioAPI és definit per gestio-logic.js
 // No cal reassignar-lo aquí
@@ -69,6 +89,7 @@ export function mountGestioView() {
   }
 
   console.log("Inicialitzant Super Mode UI...");
+  mounted = true;
 
   // Inicialitzar modals
   const modalAlumneEl = document.getElementById("modalAlumne");
@@ -94,6 +115,9 @@ export function mountGestioView() {
 
 export function unmountGestioView() {
   console.log("Desmuntant Super Mode UI...");
+  mounted = false;
+  clearTimeout(initialDataTimer);
+  initialDataTimer = null;
 
   // Netejar event listeners
   const btnNouAlumne = document.getElementById("btnNouAlumne");
@@ -193,6 +217,7 @@ export function unmountGestioView() {
 
   // Reiniciar dades
   grupAlumnesData = {};
+  professorsData = [];
 }
 
 // ============================================
@@ -219,9 +244,9 @@ function setupEventListeners() {
     ?.addEventListener("click", eventHandlers.nouProfessor);
 
   // Formularis
-  eventHandlers.submitAlumne = handleSubmitAlumne;
-  eventHandlers.submitGrup = handleSubmitGrup;
-  eventHandlers.submitProfessor = handleSubmitProfessor;
+  eventHandlers.submitAlumne = preventDuplicateSubmit(handleSubmitAlumne);
+  eventHandlers.submitGrup = preventDuplicateSubmit(handleSubmitGrup);
+  eventHandlers.submitProfessor = preventDuplicateSubmit(handleSubmitProfessor);
 
   document
     .getElementById("formAlumne")
@@ -320,6 +345,7 @@ function setupEventListeners() {
  * Sol·licitar dades inicials
  */
 function requestInitialData() {
+  if (!mounted) return;
   const socket = getSocket();
 
   console.log("[GESTIO] Demanant dades inicials...", {
@@ -332,14 +358,18 @@ function requestInitialData() {
     socket.emit("getGrupAlumnesList");
     console.log("[GESTIO] Emetent getAdminsList");
     socket.emit("getAdminsList", (response) => {
+      if (!mounted) return;
       if (response && response.status === "OK") {
         professorsData = response.data;
         renderitzarTaulaProfessors();
+      } else {
+        showErrorToast(response?.error || "No s'ha pogut obtenir la llista de professors");
       }
     });
 
     // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
-    setTimeout(() => {
+    initialDataTimer = setTimeout(() => {
+      if (!mounted) return;
       if (
         (!grupAlumnesData || Object.keys(grupAlumnesData).length === 0) &&
         professorsData.length === 0
@@ -349,16 +379,19 @@ function requestInitialData() {
         );
         socket.emit("getGrupAlumnesList");
         socket.emit("getAdminsList", (response) => {
+          if (!mounted) return;
           if (response && response.status === "OK") {
             professorsData = response.data;
             renderitzarTaulaProfessors();
+          } else {
+            showErrorToast(response?.error || "No s'ha pogut obtenir la llista de professors");
           }
         });
       }
     }, 2000);
   } else {
     console.warn("[GESTIO] Socket no connectat, reintentant en 2s...");
-    setTimeout(requestInitialData, 2000);
+    initialDataTimer = setTimeout(requestInitialData, 2000);
   }
 } // ============================================
 // RENDERITZACIÓ DE TAULES

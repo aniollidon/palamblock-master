@@ -2,13 +2,14 @@
 // Mostra i amaga la sidebar, gestiona la previsualització i la captura de pantalla
 
 import { getState } from "../../core/store.js";
+import { socketRequest } from "../../utils/socket-request.js";
+import { showToast as globalToast, showErrorToast as globalErrorToast } from "../../utils/toast.js";
 
 // Socket per cast (ws-cast) - ara es crea després de l'autenticació
 let castSocket = null;
+let castCredentials = null;
 
 function initCastSocket() {
-  if (castSocket) return castSocket;
-
   const authManager =
     window.app?.container?.get("authManager") || window.authManager;
   if (!authManager || !authManager.isAuthenticated) {
@@ -18,6 +19,16 @@ function initCastSocket() {
   try {
     const credentials = authManager.getCredentials();
     const baseUrl = authManager.serverUrl || undefined;
+    if (castSocket && castCredentials?.serverUrl === baseUrl &&
+        castCredentials?.username === credentials?.username &&
+        castCredentials?.token === credentials?.token) return castSocket;
+    if (castSocket) {
+      stopCast();
+      castSocket.disconnect();
+      castSocket = null;
+      window.__castHandlersBound = false;
+    }
+    castCredentials = { serverUrl: baseUrl, username: credentials?.username, token: credentials?.token };
     castSocket = io(baseUrl, {
       path: "/ws-cast",
       transports: ["websocket", "polling"],
@@ -32,6 +43,12 @@ function initCastSocket() {
     castSocket.on("connect_error", (e) =>
       console.warn("[CAST] Error connexió cast:", e.message)
     );
+    castSocket.on("disconnect", () => {
+      if (isBroadcasting) {
+        stopCast(true);
+        globalErrorToast("S'ha interromput l'emissió per una desconnexió. Comprova les pantalles.");
+      }
+    });
   } catch (e) {
     console.warn("[CAST] No s'ha pogut crear castSocket encara", e);
   }
@@ -40,11 +57,18 @@ function initCastSocket() {
 
 // Intent immediat i també quan el socket principal estigui llest
 window.addEventListener("socket:ready", () => {
-  if (!castSocket) initCastSocket();
+  initCastSocket();
 });
 // També quan auth es valida (token reutilitzat)
 window.addEventListener("auth:ready", () => {
-  if (!castSocket) initCastSocket();
+  initCastSocket();
+});
+window.addEventListener("auth:logout", () => {
+  stopCast(true);
+  castSocket?.disconnect();
+  castSocket = null;
+  castCredentials = null;
+  window.__castHandlersBound = false;
 });
 setTimeout(() => initCastSocket(), 200); // fallback lazy
 
@@ -55,6 +79,88 @@ let currentRoom = null;
 const peersByViewerId = new Map();
 let currentKind = null; // 'webrtc' | 'url' | null
 let pendingShare = null; // { kind, url?, interactive? }
+let sharePending = false;
+let castVersion = 0;
+let broadcastRequestPending = false;
+let replacementApproved = false;
+let replacementPromptPending = false;
+let pauseBroadcastTimeout = null;
+let resumeBroadcastTimeout = null;
+
+function singleShare(handler) {
+  return async (event) => {
+    if (sharePending) return;
+    if (!castSocket?.connected) {
+      globalErrorToast("El canal d'emissió no està connectat. Espera la reconnexió.");
+      return;
+    }
+    sharePending = true;
+    replacementApproved = false;
+    const version = castVersion;
+    const button = event?.currentTarget;
+    if (button) button.disabled = true;
+    globalToast("Preparant l'emissió...");
+    try {
+      await handler(version);
+    } catch (error) {
+      if (version === castVersion) {
+        globalErrorToast(error.message);
+        stopCast(true);
+      }
+    } finally {
+      sharePending = false;
+      if (button?.isConnected) button.disabled = false;
+    }
+  };
+}
+
+async function checkRoom(room) {
+  return socketRequest(castSocket, "check-room", { room });
+}
+
+function requestBroadcast(payload, version) {
+  if (version !== castVersion) return Promise.resolve();
+  if (!castSocket?.connected) {
+    return Promise.reject(new Error("El canal d'emissió no està connectat."));
+  }
+  broadcastRequestPending = true;
+  return new Promise((resolve, reject) => {
+    const socket = castSocket;
+    let timer;
+    const cleanup = () => {
+      broadcastRequestPending = false;
+      clearTimeout(timer);
+      pauseBroadcastTimeout = null;
+      resumeBroadcastTimeout = null;
+      socket.off("broadcaster-accepted", accepted);
+      socket.off("disconnect", disconnected);
+    };
+    const accepted = () => {
+      cleanup();
+      if (version !== castVersion) {
+        stopCast();
+        return resolve();
+      }
+      resolve();
+    };
+    const disconnected = () => {
+      cleanup();
+      reject(new Error("S'ha perdut la connexió. El resultat de l'emissió és desconegut."));
+    };
+    const timedOut = () => {
+      cleanup();
+      socket.disconnect();
+      socket.connect();
+      reject(new Error("El servidor no ha confirmat l'emissió en 15 segons. Comprova'n l'estat abans de tornar-ho a provar."));
+    };
+    pauseBroadcastTimeout = () => clearTimeout(timer);
+    resumeBroadcastTimeout = () => { timer = setTimeout(timedOut, 15000); };
+    resumeBroadcastTimeout();
+    socket.on("broadcaster-accepted", accepted);
+    socket.on("disconnect", disconnected);
+    socket.emit("broadcaster-join-request", payload);
+  });
+}
 
 // Override per emetre a un alumne específic (sense seleccionar grup)
 let overrideRoom = null; // nom de l'alumne si estem en mode individual iniciat des del grid
@@ -275,7 +381,7 @@ export function initCastSidebarListeners() {
 
   // Compartir URL amb emissió real i verificació prèvia
   if (castShareUrlButton) {
-    castShareUrlButton.addEventListener("click", async () => {
+    castShareUrlButton.addEventListener("click", singleShare(async (version) => {
       const targetRoom = getCurrentTargetRoom();
       if (!targetRoom) {
         alert("Selecciona un grup o alumne abans d'emetre");
@@ -319,10 +425,11 @@ export function initCastSidebarListeners() {
       // Comprova si ja hi ha emissor i demana confirmació
       let proceed = true;
       let noViewers = false;
-      await new Promise((resolve) => {
-        castSocket.emit("check-room", { room: targetRoom }, async (resp) => {
+      {
+        const resp = await checkRoom(targetRoom);
           if (resp && resp.hasBroadcaster) {
             proceed = await showConfirmReplaceModal();
+            replacementApproved = proceed;
           }
           if (
             resp &&
@@ -332,15 +439,14 @@ export function initCastSidebarListeners() {
           ) {
             noViewers = true;
           }
-          resolve();
-        });
-      });
+      }
 
       if (!proceed) {
         showToast("Operació cancel·lada");
         pendingShare = null;
         return;
       }
+      if (version !== castVersion) return;
 
       currentRoom = targetRoom;
       currentKind = "url";
@@ -355,18 +461,18 @@ export function initCastSidebarListeners() {
       }
 
       // Sol·licitar unió com a emissor d'URL
-      castSocket.emit("broadcaster-join-request", {
+      await requestBroadcast({
         room: currentRoom,
         kind: "url",
         url: url,
         interactive: interactive,
-      });
-    });
+      }, version);
+    }));
   }
 
   // Emetre missatge (utilitza emissió URL oculta)
   if (castShareMessageButton) {
-    castShareMessageButton.addEventListener("click", async () => {
+    castShareMessageButton.addEventListener("click", singleShare(async (version) => {
       const targetRoom = getCurrentTargetRoom();
       if (!targetRoom) {
         alert("Selecciona un grup o alumne abans d'emetre");
@@ -397,10 +503,11 @@ export function initCastSidebarListeners() {
       // Comprova si ja hi ha emissor
       let proceed = true;
       let noViewers = false;
-      await new Promise((resolve) => {
-        castSocket.emit("check-room", { room: targetRoom }, async (resp) => {
+      {
+        const resp = await checkRoom(targetRoom);
           if (resp && resp.hasBroadcaster) {
             proceed = await showConfirmReplaceModal();
+            replacementApproved = proceed;
           }
           if (
             resp &&
@@ -410,14 +517,13 @@ export function initCastSidebarListeners() {
           ) {
             noViewers = true;
           }
-          resolve();
-        });
-      });
+      }
       if (!proceed) {
         showToast("Operació cancel·lada");
         pendingShare = null;
         return;
       }
+      if (version !== castVersion) return;
 
       currentRoom = targetRoom;
       currentKind = "url";
@@ -430,12 +536,13 @@ export function initCastSidebarListeners() {
         );
       }
 
-      castSocket.emit("broadcaster-join-request", {
+      await requestBroadcast({
         room: currentRoom,
         kind: "url",
         url: url,
         interactive: false,
-      });
+      }, version);
+      if (version !== castVersion) return;
 
       // Auto aturar emissió si hi ha temps definit
       if (secs > 0) {
@@ -453,7 +560,7 @@ export function initCastSidebarListeners() {
           }
         }, secs * 1000 + 500);
       }
-    });
+    }));
   }
 
   // Atura emissió real
@@ -466,7 +573,7 @@ export function initCastSidebarListeners() {
 
   // Compartir pantalla amb emissió real i verificació prèvia
   if (castShareScreenButton) {
-    castShareScreenButton.addEventListener("click", async () => {
+    castShareScreenButton.addEventListener("click", singleShare(async (version) => {
       const targetRoom = getCurrentTargetRoom();
       if (!targetRoom) {
         alert("Selecciona un grup o alumne abans d'emetre");
@@ -493,11 +600,17 @@ export function initCastSidebarListeners() {
         );
         return;
       }
+      if (version !== castVersion) {
+        screenStream.getTracks().forEach((track) => track.stop());
+        screenStream = null;
+        return;
+      }
 
       // Mostrar previsualització i preparar onended
       try {
         await showVideoPreview(screenStream);
       } catch (_) {}
+      if (version !== castVersion || !screenStream) return;
       const videoTrack = screenStream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.onended = () => {
@@ -510,10 +623,11 @@ export function initCastSidebarListeners() {
       let proceed = true;
       let noViewers = false;
       pendingShare = { kind: "webrtc" };
-      await new Promise((resolve) => {
-        castSocket.emit("check-room", { room: targetRoom }, async (resp) => {
+      {
+        const resp = await checkRoom(targetRoom);
           if (resp && resp.hasBroadcaster) {
             proceed = await showConfirmReplaceModal();
+            replacementApproved = proceed;
           }
           if (
             resp &&
@@ -523,9 +637,7 @@ export function initCastSidebarListeners() {
           ) {
             noViewers = true;
           }
-          resolve();
-        });
-      });
+      }
 
       if (!proceed) {
         try {
@@ -537,6 +649,7 @@ export function initCastSidebarListeners() {
         pendingShare = null;
         return;
       }
+      if (version !== castVersion) return;
 
       currentRoom = targetRoom;
       currentKind = "webrtc";
@@ -546,11 +659,11 @@ export function initCastSidebarListeners() {
         );
       }
 
-      castSocket.emit("broadcaster-join-request", {
+      await requestBroadcast({
         room: currentRoom,
         kind: "webrtc",
-      });
-    });
+      }, version);
+    }));
   }
 }
 
@@ -616,13 +729,15 @@ function stopPreview() {
   castPreviewContainer.style.display = "none";
 
   // Netejar vídeo
-  if (castPreview.srcObject) {
+  if (castPreview?.srcObject) {
     const tracks = castPreview.srcObject.getTracks();
     tracks.forEach((track) => track.stop());
     castPreview.srcObject = null;
   }
-  castPreview.src = "";
-  castPreview.style.display = "none";
+  if (castPreview) {
+    castPreview.src = "";
+    castPreview.style.display = "none";
+  }
 
   // Netejar iframe
   if (castPreviewIframe) {
@@ -683,7 +798,7 @@ function showToast(text, type = "info") {
       toastEl.classList.remove("show");
     }, 3000);
   } else {
-    console.log("Toast:", text);
+    globalToast(text, type);
   }
 }
 
@@ -840,7 +955,7 @@ function updateStudentDropdown() {
       </svg>
       ${alumne.nom}
     `;
-    button.onclick = () => shareStudentScreen(alumne.nom, alumne.ip);
+    button.onclick = singleShare((version) => shareStudentScreen(alumne.nom, alumne.ip, version));
     li.appendChild(button);
     castStudentScreenMenu.appendChild(li);
   });
@@ -857,7 +972,7 @@ function updateStudentData(grupAlumnesList, alumnesMachines) {
 export { updateStudentData as updateCastStudentData };
 
 // Funció per emetre la pantalla d'un alumne
-async function shareStudentScreen(alumneNom, alumneIp) {
+async function shareStudentScreen(alumneNom, alumneIp, version) {
   const grupSelector = document.getElementById("grupSelector");
   const grup = grupSelector?.value;
   if (!grup) {
@@ -880,20 +995,20 @@ async function shareStudentScreen(alumneNom, alumneIp) {
 
   // Comprova si ja hi ha emissor i demana confirmació
   let proceed = true;
-  await new Promise((resolve) => {
-    castSocket.emit("check-room", { room: grup }, async (resp) => {
+  {
+    const resp = await checkRoom(grup);
       if (resp && resp.hasBroadcaster) {
         proceed = await showConfirmReplaceModal();
+        replacementApproved = proceed;
       }
-      resolve();
-    });
-  });
+  }
 
   if (!proceed) {
     showToast("Operació cancel·lada");
     pendingShare = null;
     return;
   }
+  if (version !== castVersion) return;
 
   currentRoom = grup;
   currentKind = "url";
@@ -901,18 +1016,19 @@ async function shareStudentScreen(alumneNom, alumneIp) {
   // Mostrar previsualització amb iframe
   showIframePreview(studentUrl);
 
-  showToast(`Emetent pantalla de ${alumneNom} al grup`);
-
   // Sol·licitar unió com a emissor d'URL
-  castSocket.emit("broadcaster-join-request", {
+  await requestBroadcast({
     room: currentRoom,
     kind: "url",
     url: studentUrl,
     interactive: false,
-  });
+  }, version);
+  if (version === castVersion) showToast(`Emetent pantalla de ${alumneNom} al grup`);
 }
 
 function stopCast(localOnly = false) {
+  castVersion++;
+  const cancelPending = broadcastRequestPending && !localOnly && castSocket?.connected;
   // Aturar streams locals
   if (screenStream) {
     screenStream.getTracks().forEach((t) => t.stop());
@@ -931,7 +1047,7 @@ function stopCast(localOnly = false) {
   peersByViewerId.clear();
 
   // Notificar servidor si cal
-  if (isBroadcasting && !localOnly) {
+  if (isBroadcasting && !localOnly && castSocket?.connected) {
     castSocket.emit("stop-broadcast");
   }
 
@@ -940,6 +1056,16 @@ function stopCast(localOnly = false) {
   currentKind = null;
   currentRoom = null;
   pendingShare = null;
+  replacementApproved = false;
+  replacementPromptPending = false;
+  if (cancelPending) {
+    castSocket.disconnect();
+    castSocket.connect();
+  }
+}
+
+export function cancelPendingCast() {
+  if (sharePending && !isBroadcasting) stopCast();
 }
 
 function createPeerConnectionForViewer(viewerId) {
@@ -1038,7 +1164,21 @@ function bindCastSocketHandlersOnce() {
   });
 
   castSocket.on("replace-required", async () => {
-    // Auto-acceptar substitució mantenint el tipus de compartició
+    if (!broadcastRequestPending || replacementPromptPending) return;
+    const version = castVersion;
+    const socket = castSocket;
+    replacementPromptPending = true;
+    pauseBroadcastTimeout?.();
+    const approved = replacementApproved || await showConfirmReplaceModal();
+    if (version !== castVersion || socket !== castSocket || !broadcastRequestPending) return;
+    replacementPromptPending = false;
+    if (!approved) {
+      stopCast();
+      showToast("Operació cancel·lada");
+      return;
+    }
+    replacementApproved = false;
+    resumeBroadcastTimeout?.();
     const payload = { room: currentRoom, confirm: true };
     const share = pendingShare || { kind: currentKind };
     if (share && share.kind === "url") {
@@ -1048,7 +1188,7 @@ function bindCastSocketHandlersOnce() {
     } else {
       payload.kind = "webrtc";
     }
-    castSocket.emit("confirm-replace", payload);
+    socket.emit("confirm-replace", payload);
     showToast("Substituint emissor existent...");
   });
 
@@ -1098,6 +1238,7 @@ window.addEventListener("pagehide", () => {
 // Rebre notificació de tancament de missatge des de l'iframe
 window.addEventListener("message", (ev) => {
   const d = ev.data;
+  const castPreviewIframe = document.getElementById("castPreviewIframe");
   if (!d || d.type !== "palam-message-close") return;
   if (
     isBroadcasting &&

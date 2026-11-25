@@ -1,4 +1,4 @@
-import { getGrup, getAlumnes, getGrups } from "./browsers-logic.js";
+import { getGrup, getAlumnes, getGrups, closeBrowserTab } from "./browsers-logic.js";
 import {
   getIntervalHorari,
   safeURL,
@@ -16,6 +16,18 @@ import { moveHistorialSidebarToSearch } from "./historial-view.js";
 import { commonPlaces, googleServices, teacherHorari } from "../../common.js";
 import { getSocket } from "../../core/container-helpers.js";
 import { createBootstrapModal } from "../../utils/dom-helpers.js";
+import { socketRequest } from "../../utils/socket-request.js";
+
+async function sendAction(event, data) {
+  try {
+    const response = await socketRequest(getSocket(), event, data);
+    if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+    return true;
+  } catch (error) {
+    showErrorToast(error.message);
+    return false;
+  }
+}
 
 // Helper per crear modals de forma segura (pot ser que el node encara no existeixi)
 function safeModal(id) {
@@ -120,6 +132,11 @@ function getNormaActionForWebPage(norma, webPage) {
 let normesWebInfo = {};
 let llistaBlancaEnUs = {};
 let allCategoriesCache = [];
+window.addEventListener("auth:logout", () => {
+  normesWebInfo = {};
+  llistaBlancaEnUs = {};
+  allCategoriesCache = [];
+});
 
 // Estat persistent del filtre de normes (cerca + categoria)
 let normesModalSearchQuery = "";
@@ -127,26 +144,32 @@ let normesModalCategoryFilter = "";
 
 // Helper: espera que el servidor actualitzi normesWeb abans d'executar el callback.
 // Escolta directament al socket per evitar el "replay immediat" del store.
-function waitForNormesUpdate(callback, timeout = 5000) {
+function waitForNormesUpdate(callback, timeout = 15000) {
   const socket = getSocket();
-  if (!socket) { callback(); return; }
+  if (!socket?.connected) {
+    showErrorToast("No hi ha connexió per actualitzar les normes.");
+    return;
+  }
 
   let fired = false;
+  let timer;
   const handler = () => {
     if (fired) return;
     fired = true;
+    clearTimeout(timer);
     socket.off("normesWeb", handler);
-    callback();
+    if (window.viewManager?.getCurrentView() === "browsers") callback();
   };
   socket.on("normesWeb", handler);
 
   // Timeout de seguretat per si el servidor no respon
-  setTimeout(() => {
+  timer = setTimeout(() => {
     if (fired) return;
     fired = true;
     socket.off("normesWeb", handler);
-    callback();
+    showErrorToast("No s'han pogut actualitzar les normes en 15 segons.");
   }, timeout);
+  socket.emit("getInitialData");
 }
 
 async function loadCategoriesFromServer() {
@@ -193,6 +216,12 @@ export function obre_confirmacio(missatge, siCallback) {
     "pbk_modal_confirmacio_missatge"
   );
   const confirmacioSi = document.getElementById("pbk_modal_confirmacio_dacord");
+  if (!confirmacio.classList.contains("show")) {
+    confirmacioSi.disabled = true;
+    confirmacio.addEventListener("shown.bs.modal", () => {
+      confirmacioSi.disabled = false;
+    }, { once: true });
+  }
   confirmacioMissatge.innerHTML = missatge;
   confirmacioSi.onclick = () => {
     siCallback();
@@ -372,17 +401,19 @@ export function creaWebMenuJSON(
         toggleBtn.setAttribute("type", "button");
         toggleBtn.setAttribute("class", "btn btn-outline-danger btn-sm ms-2 flex-shrink-0");
         toggleBtn.innerHTML = "Desactiva";
-        toggleBtn.onclick = () => {
-          getSocket()?.emit("updateNormaWeb", {
+        toggleBtn.onclick = async () => {
+          toggleBtn.disabled = true;
+          const success = await sendAction("updateNormaWeb", {
             normaId: norma.id,
             who: norma.origen,
             whoid: norma.origenNom,
             alive: false,
           });
-          bloquejosModal.hide();
-          showWarningToast(
-            `Norma desactivada per a ${norma.origenNom}.`
-          );
+          toggleBtn.disabled = false;
+          if (success) {
+            bloquejosModal.hide();
+            showWarningToast(`Norma desactivada per a ${norma.origenNom}.`);
+          }
         };
         heading.appendChild(toggleBtn);
 
@@ -397,11 +428,7 @@ export function creaWebMenuJSON(
   };
 
   const onTanca = (info) => {
-    getSocket()?.emit("closeTab", {
-      alumne: alumne,
-      browser: browser,
-      tabId: info.tabId,
-    });
+    closeBrowserTab(alumne, browser, info.tabId);
   };
 
   const searchOnHistorial = (info) => {
@@ -679,7 +706,6 @@ export function obreDialogBloquejaWeb(
     // Si és una categoria nova, emetre al servidor
     if (!allCategoriesCache.includes(trimmed)) {
       allCategoriesCache.push(trimmed);
-      getSocket()?.emit("addCategory", { category: trimmed });
     }
   }
 
@@ -1229,37 +1255,40 @@ export function obreDialogBloquejaWeb(
         "saps el que fas, endavant!, en tinc els meus dubtes...";
     }
 
-    obre_confirmacio(text_confirmacio, () => {
-      if (menustate.editPrevious) {
-        getSocket()?.emit("removeNormaWeb", {
-          who: menustate.editPrevious.who,
-          whoid: menustate.editPrevious.whoid,
-          normaId: menustate.editPrevious.normaid,
-        });
-      }
-
-      getSocket()?.emit("addNormaWeb", {
+    obre_confirmacio(text_confirmacio, async () => {
+      normaButton.disabled = true;
+      const previous = menustate.editPrevious;
+      const sameTarget = previous && previous.who === normaWhoSelection && previous.whoid === normaWhoId;
+      const success = await sendAction(sameTarget ? "updateNormaWeb" : "addNormaWeb", {
         who: normaWhoSelection,
         whoid: normaWhoId,
+        ...(sameTarget ? { normaId: previous.normaid } : {}),
         severity: severitySelect.value,
         mode: normaMode,
         list: list,
         enabled_on: enabled_on,
-        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+        categories: selectedCategories,
       });
+      if (!success) {
+        normaButton.disabled = false;
+        return;
+      }
+      if (previous && !sameTarget) {
+        const removed = await sendAction("removeNormaWeb", {
+          who: previous.who,
+          whoid: previous.whoid,
+          normaId: previous.normaid,
+        });
+        if (!removed) {
+          normaButton.disabled = false;
+          showErrorToast("La nova norma s'ha creat, però no s'ha pogut confirmar l'eliminació de l'anterior. Revisa-les abans de tornar-ho a provar.");
+          return;
+        }
+      }
+      normaButton.disabled = false;
+      blockModalWeb.hide();
+      if (previous) waitForNormesUpdate(() => obreDialogNormesWeb(previous.whoid, previous.who));
     });
-
-    blockModalWeb.hide();
-
-    // Si venim d'una edició, reobrir el modal de normes automàticament
-    if (menustate.editPrevious) {
-      waitForNormesUpdate(() => {
-        obreDialogNormesWeb(
-          menustate.editPrevious.whoid,
-          menustate.editPrevious.who
-        );
-      });
-    }
   };
 
   blockModalWeb.show();
@@ -1370,13 +1399,13 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     saveNormesFilterState();
     obre_confirmacio(
       `Segur que vols <strong>activar</strong> totes les normes (${count}) de la categoria <i>${actualCat}</i>?`,
-      () => {
-        getSocket()?.emit("setCategoryAlive", {
+      async () => {
+        if (!await sendAction("setCategoryAlive", {
           who: who,
           whoid: whoid,
           category: actualCat,
           alive: true,
-        });
+        })) return;
         normesModal.hide();
         waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
       }
@@ -1397,13 +1426,13 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
     saveNormesFilterState();
     obre_confirmacio(
       `Segur que vols <strong>desactivar</strong> totes les normes (${count}) de la categoria <i>${actualCat}</i>?`,
-      () => {
-        getSocket()?.emit("setCategoryAlive", {
+      async () => {
+        if (!await sendAction("setCategoryAlive", {
           who: who,
           whoid: whoid,
           category: actualCat,
           alive: false,
-        });
+        })) return;
         normesModal.hide();
         waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
       }
@@ -1528,14 +1557,16 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
           <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
           <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
         </svg>`;
-    trash.onclick = (event) => {
+    trash.onclick = async (event) => {
       saveNormesFilterState();
-      getSocket()?.emit("removeNormaWeb", {
+      trash.disabled = true;
+      const success = await sendAction("removeNormaWeb", {
         normaId: norma,
         who: who,
         whoid: whoid,
       });
-      normesWebInfo[whos][whoid][norma].removed = true;
+      trash.disabled = false;
+      if (!success) return;
       normesModal.hide();
       waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
     };
@@ -1595,27 +1626,31 @@ export function obreDialogNormesWeb(whoid, who = "alumne") {
       itemTitle.innerHTML += " (desactivada)";
     }
 
-    eyeopen.onclick = (event) => {
+    eyeopen.onclick = async (event) => {
       saveNormesFilterState();
-      normesWebInfo[whos][whoid][norma].alive = true;
-      getSocket()?.emit("updateNormaWeb", {
+      eyeopen.disabled = true;
+      const success = await sendAction("updateNormaWeb", {
         normaId: norma,
         who: who,
         whoid: whoid,
         alive: true,
       });
+      eyeopen.disabled = false;
+      if (!success) return;
       normesModal.hide();
       waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
     };
-    eyeclose.onclick = (event) => {
+    eyeclose.onclick = async (event) => {
       saveNormesFilterState();
-      normesWebInfo[whos][whoid][norma].alive = false;
-      getSocket()?.emit("updateNormaWeb", {
+      eyeclose.disabled = true;
+      const success = await sendAction("updateNormaWeb", {
         normaId: norma,
         who: who,
         whoid: whoid,
         alive: false,
       });
+      eyeclose.disabled = false;
+      if (!success) return;
       normesModal.hide();
       waitForNormesUpdate(() => obreDialogNormesWeb(whoid, who));
     };
@@ -2021,8 +2056,9 @@ export function obreDialogAfegeixLlistaBlanca(grup) {
     obre_confirmacio(
       "Segur que vols crear una llista blanca? La llista blanca bloqueja tot el tràfic que " +
         "no coincideix amb la norma. Si la durada no és la correcta pot interferir amb altres professors i assignatures. ",
-      () => {
-        getSocket()?.emit("addNormaWeb", {
+      async () => {
+        confirma.disabled = true;
+        const success = await sendAction("addNormaWeb", {
           //TODO
           who: "grup",
           whoid: grup,
@@ -2031,10 +2067,10 @@ export function obreDialogAfegeixLlistaBlanca(grup) {
           list: list,
           enabled_on: enabled_on,
         });
+        confirma.disabled = false;
+        if (success) llistaBlancaModal.hide();
       }
     );
-
-    llistaBlancaModal.hide();
   };
 
   llistaBlancaModal.show();

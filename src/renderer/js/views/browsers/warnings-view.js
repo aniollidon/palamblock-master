@@ -1,5 +1,7 @@
 import { isValidEmail, normaTempsActiva } from "../../utils/validators.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { socketRequest } from "../../utils/socket-request.js";
+import { showErrorToast } from "../../utils/toast.js";
 
 let lastNormesData = null;
 
@@ -118,14 +120,22 @@ export function refreshWarningsForGroup(grup) {
           <path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/>
           <path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/>
         </svg>`;
-        actionBtn.onclick = () => {
-          getSocket()?.emit("updateNormaWeb", {
+        actionBtn.onclick = async () => {
+          actionBtn.disabled = true;
+          try {
+            const response = await socketRequest(getSocket(), "updateNormaWeb", {
             normaId: normaid,
             who: whotxt,
             whoid: whois,
             alive: false,
-          });
-          bootstrap.Alert.getOrCreateInstance(div).close();
+            });
+            if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+            bootstrap.Alert.getOrCreateInstance(div).close();
+          } catch (error) {
+            showErrorToast(error.message);
+          } finally {
+            actionBtn.disabled = false;
+          }
         };
       } else {
         // Norma no recurrent (sense days): botó d'eliminar
@@ -134,13 +144,21 @@ export function refreshWarningsForGroup(grup) {
           <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
           <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
         </svg>`;
-        actionBtn.onclick = () => {
-          getSocket()?.emit("removeNormaWeb", {
+        actionBtn.onclick = async () => {
+          actionBtn.disabled = true;
+          try {
+            const response = await socketRequest(getSocket(), "removeNormaWeb", {
             normaId: normaid,
             who: whotxt,
             whoid: whois,
-          });
-          bootstrap.Alert.getOrCreateInstance(div).close();
+            });
+            if (response?.status !== "OK") throw new Error("Resposta inesperada del servidor");
+            bootstrap.Alert.getOrCreateInstance(div).close();
+          } catch (error) {
+            showErrorToast(error.message);
+          } finally {
+            actionBtn.disabled = false;
+          }
         };
       }
 

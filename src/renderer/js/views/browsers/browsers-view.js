@@ -7,6 +7,8 @@ import {
   drawHistorialWeb,
   drawHistorialStats,
   drawHistorialHostsSortedByUsage,
+  isCurrentHistorialResponse,
+  invalidateHistorialRequests,
 } from "./historial-view.js";
 import { drawAlumnesActivity, preparaAlumnesGrups } from "./browsers-logic.js";
 import { setnormesWebInfo } from "./normes-logic.js";
@@ -36,6 +38,20 @@ function errorSendLog(e) {
 let unsubscribers = [];
 let grupsLoaded = false;
 let lastRefreshTs = 0;
+let initialDataTimer = null;
+
+function updateRoleControls() {
+  const allowed = !!window.authManager?.isSuperAdmin();
+  for (const button of document.querySelectorAll('[id$="-status-button-main"]')) {
+    button.disabled = !allowed;
+    button.title = allowed ? "" : "Cal ser superadministrador";
+  }
+  const groupButton = document.getElementById("globalGroupGtatus");
+  if (groupButton && document.getElementById("grupSelector")?.selectedOptions?.[0]?.disabled === false) {
+    groupButton.disabled = !allowed;
+    groupButton.title = allowed ? "" : "Cal ser superadministrador";
+  }
+}
 
 /**
  * Subscriu als esdeveniments del store
@@ -89,6 +105,7 @@ function subscribe() {
 
   unsubscribers.push(
     storeOn("historialWebAlumne", (data) => {
+      if (!isCurrentHistorialResponse(data, data?.query ? "getSearchHistorialWeb" : "getHistorialWeb")) return;
       debugLog(
         "EVENT historialWebAlumne",
         data?.alumne,
@@ -105,6 +122,7 @@ function subscribe() {
 
   unsubscribers.push(
     storeOn("eachBrowserLastUsage", (data) => {
+      if (!isCurrentHistorialResponse(data, "getEachBrowserLastUsage")) return;
       debugLog(
         "EVENT eachBrowserLastUsage",
         data?.alumne,
@@ -120,6 +138,7 @@ function subscribe() {
 
   unsubscribers.push(
     storeOn("historialHostsSortedByUsage", (data) => {
+      if (!isCurrentHistorialResponse(data, "getHistorialHostsSortedByUsage")) return;
       debugLog(
         "EVENT historialHostsSortedByUsage",
         data?.alumne,
@@ -190,12 +209,13 @@ export async function init() {
 
   // Subscriure als esdeveniments del store
   subscribe();
+  window.addEventListener("auth:role-changed", updateRoleControls);
 
   // Sol·licitar dades inicials
   requestInitialData("browsers-mount");
 
   // Comprovació de seguretat: si després de 2 segons no tenim dades, tornar a sol·licitar
-  setTimeout(() => {
+  initialDataTimer = setTimeout(() => {
     if (!grupsLoaded) {
       console.warn("[BROWSERS-VIEW] No s'han rebut grups després de 2s, reintentant...");
       requestInitialData("browsers-mount-retry");
@@ -235,9 +255,13 @@ export async function init() {
  */
 export function destroy() {
   debugLog("DESTRUINT VISTA");
+  invalidateHistorialRequests();
 
   // Desubscriure de tots els esdeveniments
   unsubscribe();
+  clearTimeout(initialDataTimer);
+  initialDataTimer = null;
+  window.removeEventListener("auth:role-changed", updateRoleControls);
 
   // Netejar variables globals
   delete window.__palamBrowsersViewStatus;

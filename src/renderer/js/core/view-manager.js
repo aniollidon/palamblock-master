@@ -12,6 +12,8 @@ export class ViewManager {
     this.currentView = null;
     this.currentInstance = null;
     this.viewInstances = new Map();
+    this.navigationVersion = 0;
+    this.navigationQueue = Promise.resolve();
 
     // Dependències injectades
     this.authManager = dependencies.authManager;
@@ -70,8 +72,18 @@ export class ViewManager {
       return;
     }
 
-    console.log(`[VIEW] Carregant vista: ${viewName}`);
+    const version = ++this.navigationVersion;
+    const load = async () => {
+      if (version !== this.navigationVersion) return;
+      await this.loadViewSerially(viewName, options, version);
+    };
+    const result = this.navigationQueue.then(load, load);
+    this.navigationQueue = result.catch(() => {});
+    return result;
+  }
 
+  async loadViewSerially(viewName, options, version) {
+    console.log(`[VIEW] Carregant vista: ${viewName}`);
     try {
       // 1. Destruir vista actual
       await this.destroyCurrentView();
@@ -81,6 +93,7 @@ export class ViewManager {
 
       // 3. Carregar HTML de la plantilla
       const html = await this.loadTemplate(this.views[viewName].templateFile);
+      if (version !== this.navigationVersion) return;
 
       // 4. Injectar HTML al contenidor principal
       const mainContent =
@@ -95,6 +108,7 @@ export class ViewManager {
 
       // 6. Actualitzar estat
       this.currentView = viewName;
+      if (version !== this.navigationVersion) return;
 
       // 7. Emetre esdeveniment de canvi de vista
       this.emitEvent("view:changed", { view: viewName, options });
@@ -102,7 +116,7 @@ export class ViewManager {
       console.log(`[VIEW] Vista '${viewName}' carregada correctament`);
     } catch (error) {
       console.error(`[VIEW] Error carregant vista '${viewName}':`, error);
-      this.showErrorView(error.message);
+      if (version === this.navigationVersion) this.showErrorView(error.message);
     }
   }
 
@@ -266,15 +280,18 @@ export class ViewManager {
    * Neteja la vista actual sense carregar-ne una de nova
    */
   async clearCurrentView() {
-    await this.destroyCurrentView();
-
-    const mainContent =
-      document.getElementById("appMain") || document.querySelector("main");
-    if (mainContent) {
-      mainContent.innerHTML = "";
-    }
-
-    this.currentView = null;
+    const version = ++this.navigationVersion;
+    const clear = async () => {
+      await this.destroyCurrentView();
+      if (version !== this.navigationVersion) return;
+      const mainContent =
+        document.getElementById("appMain") || document.querySelector("main");
+      if (mainContent) mainContent.innerHTML = "";
+      this.currentView = null;
+    };
+    const result = this.navigationQueue.then(clear, clear);
+    this.navigationQueue = result.catch(() => {});
+    return result;
   }
 
   /**

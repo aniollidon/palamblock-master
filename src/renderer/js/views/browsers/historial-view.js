@@ -1,6 +1,33 @@
 import { chromeTabsObjects } from "./browsers-logic.js";
 import { creaWebMenuJSON } from "./normes-logic.js";
 import { getSocket } from "../../core/container-helpers.js";
+import { showErrorToast } from "../../utils/toast.js";
+
+let historyRequestId = 0;
+let currentHistoryRequest = null;
+let pendingReady = null;
+
+export function invalidateHistorialRequests() {
+  currentHistoryRequest = null;
+  if (pendingReady) window.removeEventListener("socket:ready", pendingReady);
+  pendingReady = null;
+}
+
+export function isCurrentHistorialResponse(data, eventName) {
+  const request = currentHistoryRequest;
+  if (!request || request.eventName !== eventName || data?.alumne !== request.alumne) return false;
+  if (data.requestId == null) {
+    showErrorToast("El servidor no és compatible amb la identificació de consultes d'historial.");
+    invalidateHistorialRequests();
+    return false;
+  }
+  if (data.requestId !== request.id) return false;
+  const sidebar = document.getElementById("historialSidebar");
+  if (!sidebar?.classList.contains("show") || sidebar.getAttribute("data-alumne") !== request.alumne) return false;
+  if (eventName === "getSearchHistorialWeb" &&
+      document.getElementById("historialSearchInput")?.value !== request.search) return false;
+  return true;
+}
 
 function asDisplayText(value) {
   if (typeof value === "string") {
@@ -18,11 +45,15 @@ function asDisplayText(value) {
 
 // Helper: emet l'esdeveniment quan el socket estigui llest
 function emitWhenReady(eventName, payload) {
+  invalidateHistorialRequests();
+  const request = { id: ++historyRequestId, eventName, alumne: payload.alumne, search: payload.search };
+  currentHistoryRequest = request;
   const attempt = () => {
+    if (currentHistoryRequest !== request) return false;
     try {
       const socket = getSocket();
       if (socket && socket.connected) {
-        socket.emit(eventName, payload);
+        socket.emit(eventName, { ...payload, requestId: request.id });
         return true;
       }
     } catch (_) {}
@@ -32,9 +63,11 @@ function emitWhenReady(eventName, payload) {
   if (attempt()) return;
   const onReady = () => {
     window.removeEventListener("socket:ready", onReady);
+    pendingReady = null;
     // petit delay per assegurar connexió estable
     setTimeout(() => attempt(), 20);
   };
+  pendingReady = onReady;
   window.addEventListener("socket:ready", onReady);
 }
 
@@ -49,6 +82,7 @@ export function toogleSideBar(alumne, tipus = "web") {
   const mainContent = document.querySelector(".main-content");
 
   historialSidebarClose.onclick = () => {
+    invalidateHistorialRequests();
     historialSidebar.style.setProperty("display", "none", "important");
     // Treu la classe que el fa visible (animació slide-in)
     historialSidebar.classList.remove("show");
@@ -212,6 +246,7 @@ export function initHistorialSidebar(alumne) {
   };
 
   historialSidebarSearchTab.onclick = () => {
+    invalidateHistorialRequests();
     resethiddenHistorialAuxInfo();
 
     historialSearchResults.innerHTML = "";
@@ -227,6 +262,7 @@ export function initHistorialSidebar(alumne) {
 
     historialSearchInput.focus();
     historialSearchInput.value = "";
+    historialSearchInput.oninput = invalidateHistorialRequests;
     historialSearchInput.onchange = () => {
       resethiddenHistorialAuxInfo();
 
@@ -500,7 +536,7 @@ export function drawHistorialHostsSortedByUsage(alumne, sortedHistorial, days) {
           return;
         }
 
-        socket.emit("getHistorialHostsSortedByUsage", {
+        emitWhenReady("getHistorialHostsSortedByUsage", {
           alumne: alumne,
           pastDays: parsedDays,
         });

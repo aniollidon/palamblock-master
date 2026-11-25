@@ -189,6 +189,10 @@ export class AuthManager {
       // Invalidar credencials
       this.isAuthenticated = false;
       this.authToken = null;
+      this.currentCredentials = null;
+      this.adminRole = null;
+      this.adminGrupsPermesos = [];
+      this.emitEvent("auth:logout");
 
       // Obrir modal si no està obert
       this.showLogin();
@@ -205,6 +209,10 @@ export class AuthManager {
    * Mostra el modal de login
    */
   showLogin() {
+    if (this._pendingHideLogin) {
+      document.getElementById("loginModal")?.removeEventListener("shown.bs.modal", this._pendingHideLogin);
+      this._pendingHideLogin = null;
+    }
     if (!window.dispatchEvent(new CustomEvent("auth:login-request", { cancelable: true }))) {
       if (!this._deferredArchiveLogin) {
         this._deferredArchiveLogin = () => {
@@ -239,8 +247,19 @@ export class AuthManager {
    * Amaga el modal de login
    */
   hideLogin() {
-    if (this._modalInstance) {
-      this._modalInstance.hide();
+    if (!this._modalInstance) return;
+    const modal = document.getElementById("loginModal");
+    let hiding = false;
+    const onHide = () => { hiding = true; };
+    modal?.addEventListener("hide.bs.modal", onHide, { once: true });
+    this._modalInstance.hide();
+    modal?.removeEventListener("hide.bs.modal", onHide);
+    if (!hiding && modal && !this._pendingHideLogin) {
+      this._pendingHideLogin = () => {
+        this._pendingHideLogin = null;
+        if (this.isAuthenticated) this.hideLogin();
+      };
+      modal.addEventListener("shown.bs.modal", this._pendingHideLogin, { once: true });
     }
   }
 
@@ -270,6 +289,12 @@ export class AuthManager {
       this.currentAbortController.abort();
     }
     this.currentAbortController = new AbortController();
+    const controller = this.currentAbortController;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15000);
 
     try {
       // Calcular MD5 de la contrasenya (igual que la versió web)
@@ -280,7 +305,7 @@ export class AuthManager {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user: username, clauMd5 }),
-        signal: this.currentAbortController.signal,
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -294,10 +319,18 @@ export class AuthManager {
         throw new Error("No s'ha rebut token del servidor");
       }
 
+      if (this.isAuthenticated &&
+          (this.serverUrl !== serverUrl || this.currentCredentials?.username !== username)) {
+        this.isAuthenticated = false;
+        this.emitEvent("auth:logout");
+      }
+
       // Guardar credencials
       this.serverUrl = serverUrl;
       this.authToken = data.authToken;
       this.currentCredentials = { username, token: data.authToken };
+      this.adminRole = null;
+      this.adminGrupsPermesos = [];
       this.isAuthenticated = true;
 
       // Persistir configuració
@@ -310,14 +343,19 @@ export class AuthManager {
       console.log("[AUTH] Login exitós, esperant connexió socket...");
     } catch (error) {
       console.error("[AUTH] Error en login:", error);
+      if (this.currentAbortController !== controller) return;
       this.showLoginSpinner(false);
 
       if (error.name === "AbortError") {
+        if (timedOut) this.showLoginError("El servidor no ha respost en 15 segons.");
         return; // Petició cancel·lada
       }
 
       this.showLoginError(error.message);
       this.showLoginSpinner(false);
+    } finally {
+      clearTimeout(timeout);
+      if (this.currentAbortController === controller) this.currentAbortController = null;
     }
   }
 
@@ -340,6 +378,12 @@ export class AuthManager {
       this.currentAbortController.abort();
     }
     this.currentAbortController = new AbortController();
+    const controller = this.currentAbortController;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15000);
 
     try {
       // Test amb credencials buides (retornarà 401 però prova connectivitat)
@@ -347,19 +391,23 @@ export class AuthManager {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user: "", clauMd5: "" }),
-        signal: this.currentAbortController.signal,
+        signal: controller.signal,
       });
 
       // Qualsevol resposta (fins i tot 401) significa que el servidor és accessible
       this.showLoginSuccess("Connexió OK - Servidor PalamSRV accessible");
     } catch (error) {
       if (error.name === "AbortError") {
+        if (timedOut) this.showLoginError("El servidor no ha respost en 15 segons.");
         return; // Petició cancel·lada
       }
       this.showLoginError(`Error de connexió: ${error.message}`);
     } finally {
-      this.showLoginSpinner(false);
-      this.currentAbortController = null;
+      clearTimeout(timeout);
+      if (this.currentAbortController === controller) {
+        this.showLoginSpinner(false);
+        this.currentAbortController = null;
+      }
     }
   }
 
@@ -404,6 +452,8 @@ export class AuthManager {
     this.isAuthenticated = false;
     this.authToken = null;
     this.currentCredentials = null;
+    this.adminRole = null;
+    this.adminGrupsPermesos = [];
 
     // Netejar configuració
     if (this.electronAPI?.setConfig) {

@@ -1,6 +1,6 @@
 {
   "name": "palammaster",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "PalamMaster - Aplicació d'administració Electron per PalamBlock",
   "main": "src/main.js",
   "scripts": {
@@ -33,10 +33,14 @@
     "electron-builder": "^26.18.0"
   },
   "dependencies": {
+    "@popperjs/core": "2.11.8",
     "axios": "^1.6.0",
+    "bootstrap": "5.3.8",
     "crypto-js": "^4.2.0",
+    "draggabilly": "2.2.0",
     "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
+    "jquery": "3.5.1",
     "socket.io-client": "^4.7.5",
     "yauzl": "^3.2.0"
   },

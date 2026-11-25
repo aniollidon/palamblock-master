@@ -19,6 +19,8 @@ const state = {
 
 // Mapa de listeners: event -> Set<callback>
 const listeners = new Map();
+const eventVersions = new Map();
+let stateVersion = 0;
 
 // Esdeveniments que tenen estat al store i poden fer replay immediat als nous subscribers
 const replayableEvents = {
@@ -51,11 +53,14 @@ export function on(event, fn) {
   // sense haver d'esperar una nova resposta del servidor.
   const stateKey = replayableEvents[event];
   if (stateKey && state[stateKey] != null) {
-    const cached = state[stateKey];
+    const eventVersion = eventVersions.get(event);
+    const currentStateVersion = stateVersion;
     queueMicrotask(() => {
       try {
-        if (listeners.get(event)?.has(fn)) {
-          fn(cached);
+        if (listeners.get(event)?.has(fn) &&
+            eventVersions.get(event) === eventVersion &&
+            stateVersion === currentStateVersion) {
+          fn(state[stateKey]);
         }
       } catch (error) {
         console.warn(`[STORE] Error en replay immediat de '${event}':`, error);
@@ -85,6 +90,7 @@ export function off(event, fn) {
  * @param {any} payload - Dades a enviar
  */
 export function emit(event, payload) {
+  eventVersions.set(event, (eventVersions.get(event) || 0) + 1);
   const set = listeners.get(event);
   if (!set || set.size === 0) return;
 
@@ -276,6 +282,7 @@ export function requestInitialData(origin = 'store') {
  * Neteja tot l'estat del store
  */
 export function clearState() {
+  stateVersion++;
   state.grupAlumnesList = null;
   state.alumnesActivity = null;
   state.normesWeb = null;
@@ -283,6 +290,8 @@ export function clearState() {
   state.eachBrowserLastUsage = {};
   state.historialHostsSortedByUsage = {};
   state.alumnesMachine = null;
+  state.expectedNetwork = null;
+  state.remoteVncPassword = null;
 
   console.log('[STORE] Estat netejat');
 }
